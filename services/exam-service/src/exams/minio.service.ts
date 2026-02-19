@@ -25,10 +25,17 @@ export class MinioService implements OnModuleInit {
     this.bucket     = process.env.MINIO_BUCKET_EXAMS ?? 'exam-pdfs';
     this.presignTtl = 3600; // 1 saat
 
+    // Cloudflare R2 gibi full URL endpoint'leri destekle
+    // (örn: https://<account>.r2.cloudflarestorage.com)
+    const isFullUrl = endpoint.startsWith('http://') || endpoint.startsWith('https://');
+    const endpointUrl = isFullUrl
+      ? endpoint
+      : `http://${endpoint}:${port}`;
+
     this.client = new S3Client({
-      endpoint:          `http://${endpoint}:${port}`,
-      region:            'us-east-1',      // MinIO region agnostic
-      forcePathStyle:    true,             // MinIO gerektirir
+      endpoint:       endpointUrl,
+      region:         'auto',         // R2 için 'auto', MinIO için herhangi değer çalışır
+      forcePathStyle: !isFullUrl,     // MinIO gerektirir; R2 gerektirmez
       credentials: { accessKeyId: access, secretAccessKey: secret },
     });
   }

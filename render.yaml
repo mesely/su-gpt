@@ -1,0 +1,179 @@
+## render.yaml — SU Advisor Blueprint
+# Render Dashboard'da "New → Blueprint" ile bu repo'yu bağla.
+# Tüm servisler otomatik oluşturulur.
+#
+# Doldurman gereken ortam değişkenleri:
+#   MISTRAL_API_KEY       → console.mistral.ai
+#   MONGODB_URI           → MongoDB Atlas connection string
+#   MINIO_ENDPOINT        → <account_id>.r2.cloudflarestorage.com
+#   MINIO_ACCESS_KEY      → Cloudflare R2 Access Key ID
+#   MINIO_SECRET_KEY      → Cloudflare R2 Secret Access Key
+#   JWT_SECRET            → Güçlü rastgele string (openssl rand -hex 32)
+
+services:
+
+  # ─── ChromaDB (Private) ─────────────────────────────────────────────────────
+  - type: pserv
+    name: su-chroma
+    runtime: docker
+    dockerfilePath: ./infra/docker/chroma.Dockerfile
+    disk:
+      name: chroma-data
+      mountPath: /chroma/chroma
+      sizeGB: 1
+    envVars:
+      - key: IS_PERSISTENT
+        value: "1"
+      - key: ANONYMIZED_TELEMETRY
+        value: "False"
+
+  # ─── course-service (Private) ───────────────────────────────────────────────
+  - type: pserv
+    name: su-course-svc
+    runtime: docker
+    dockerfilePath: ./services/course-service/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: COURSE_SERVICE_PORT
+        value: "50051"
+      - key: NODE_ENV
+        value: production
+
+  # ─── rag-service (Private) ──────────────────────────────────────────────────
+  - type: pserv
+    name: su-rag-svc
+    runtime: docker
+    dockerfilePath: ./services/rag-service/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest
+      - key: MISTRAL_EMBED_MODEL
+        value: mistral-embed
+      - key: MISTRAL_MAX_TOKENS
+        value: "2048"
+      - key: MISTRAL_TEMPERATURE
+        value: "0.3"
+      - key: CHROMA_HOST
+        fromService:
+          name: su-chroma
+          type: pserv
+          property: host
+      - key: CHROMA_PORT
+        value: "10000"
+      - key: CHROMA_COLLECTION_REVIEWS
+        value: su_reviews
+      - key: CHROMA_COLLECTION_EXAMS
+        value: su_exams
+      - key: RAG_SERVICE_PORT
+        value: "50052"
+      - key: NODE_ENV
+        value: production
+
+  # ─── instructor-service (Private) ───────────────────────────────────────────
+  - type: pserv
+    name: su-instructor-svc
+    runtime: docker
+    dockerfilePath: ./services/instructor-service/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: INSTRUCTOR_SERVICE_PORT
+        value: "50053"
+      - key: NODE_ENV
+        value: production
+
+  # ─── exam-service (Private) ─────────────────────────────────────────────────
+  - type: pserv
+    name: su-exam-svc
+    runtime: docker
+    dockerfilePath: ./services/exam-service/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_PORT
+        value: "443"
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET_EXAMS
+        value: exam-pdfs
+      - key: EXAM_SERVICE_PORT
+        value: "50054"
+      - key: NODE_ENV
+        value: production
+
+  # ─── API Gateway (Public Web Service) ───────────────────────────────────────
+  - type: web
+    name: su-gateway
+    runtime: docker
+    dockerfilePath: ./gateway/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: GATEWAY_PORT
+        value: "3000"
+      - key: JWT_SECRET
+        sync: false
+      - key: COURSE_SERVICE_HOST
+        fromService:
+          name: su-course-svc
+          type: pserv
+          property: host
+      - key: COURSE_SERVICE_PORT
+        value: "50051"
+      - key: RAG_SERVICE_HOST
+        fromService:
+          name: su-rag-svc
+          type: pserv
+          property: host
+      - key: RAG_SERVICE_PORT
+        value: "50052"
+      - key: INSTRUCTOR_SERVICE_HOST
+        fromService:
+          name: su-instructor-svc
+          type: pserv
+          property: host
+      - key: INSTRUCTOR_SERVICE_PORT
+        value: "50053"
+      - key: EXAM_SERVICE_HOST
+        fromService:
+          name: su-exam-svc
+          type: pserv
+          property: host
+      - key: EXAM_SERVICE_PORT
+        value: "50054"
+      - key: NODE_ENV
+        value: production
+
+  # ─── Frontend (Public Web Service) ──────────────────────────────────────────
+  - type: web
+    name: su-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "3001"
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: su-gateway
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+        value: https://su-gateway.onrender.com/api/v1  # deploy sonrası gerçek URL ile değiştir
