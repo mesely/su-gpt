@@ -33,13 +33,13 @@ export function GlassModal({ open, onClose, title, children, className }: GlassM
         >
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-su-900/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-gradient-to-br from-su-900/80 via-su-700/50 to-black/75 backdrop-blur-md"
             onClick={onClose}
           />
           {/* Panel */}
           <motion.div
             className={cn(
-              'relative glass rounded-glass p-6 w-full max-w-lg z-10',
+              'relative glass-ultra rounded-[26px] p-6 w-full max-w-xl z-10 overflow-hidden',
               className,
             )}
             initial={{ scale: 0.95, y: 8 }}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import '../styles/su-theme.css'
-import { Sidebar } from '@/components/Sidebar'
+import { AppShell } from '@/components/AppShell'
 
 export const metadata: Metadata = {
   title: 'SU Advisor',
@@ -10,9 +10,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr">
-      <body className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <body className="h-screen overflow-hidden">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   )

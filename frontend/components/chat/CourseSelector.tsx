@@ -5,7 +5,7 @@ import { api, Course } from '@/lib/api'
 import { useAuthStore, useCourseSelectionStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const ALL_MAJORS = ['CS', 'IF', 'EE', 'ME', 'IE', 'MAT', 'BIO', 'NS', 'PSYC', 'HUM', 'SPS', 'VA', 'ENS']
+const PREFIXES = ['ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'HIST', 'TLL', 'AL', 'HUM', 'SPS', 'NS', 'ENS', 'ECON', 'PSYC']
 
 interface CourseSelectorProps {
   /** Hangi sekme açık başlasın */
@@ -18,18 +18,18 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
   const { token } = useAuthStore()
   const { selectedCourses, toggleCourse } = useCourseSelectionStore()
 
-  const [activeMajor, setActiveMajor] = useState(initialMajor)
+  const [activePrefix, setActivePrefix] = useState(initialMajor)
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQ, setSearchQ] = useState('')
 
-  const fetchCourses = useCallback(async (major: string) => {
+  const fetchCourses = useCallback(async () => {
     if (!token) return
     setLoading(true)
     setCourses([])
     try {
-      const res = await api.searchCourses(token, { major, pageSize: '100' })
-      setCourses(res.courses ?? [])
+      const res = await api.searchCourses(token, { pageSize: '5000' })
+      setCourses((res.courses ?? []).sort((a, b) => a.fullCode.localeCompare(b.fullCode)))
     } catch {
       setCourses([])
     } finally {
@@ -37,16 +37,22 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
     }
   }, [token])
 
-  useEffect(() => { fetchCourses(activeMajor) }, [activeMajor, fetchCourses])
+  useEffect(() => { fetchCourses() }, [fetchCourses])
+
+  function codePrefix(fullCode: string) {
+    const m = fullCode.match(/^[A-Z]+/)
+    return m ? m[0] : fullCode
+  }
 
   const filtered = courses.filter((c) => {
+    if (activePrefix !== 'ALL' && codePrefix(c.fullCode) !== activePrefix) return false
     if (!searchQ) return true
     const q = searchQ.toLowerCase()
     return c.fullCode.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
   })
 
   const handleTabChange = (m: string) => {
-    setActiveMajor(m)
+    setActivePrefix(m)
     setSearchQ('')
   }
 
@@ -82,20 +88,20 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
         </div>
       </div>
 
-      {/* Major sekmeleri */}
+      {/* Prefix sekmeleri */}
       <div className="flex gap-1 px-3 py-2 overflow-x-auto shrink-0 border-b border-white/10">
-        {ALL_MAJORS.map((m) => (
+        {PREFIXES.map((m) => (
           <button
             key={m}
             onClick={() => handleTabChange(m)}
             className={cn(
-              'px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all',
-              activeMajor === m
+              'px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all',
+              activePrefix === m
                 ? 'bg-su-500 text-white font-semibold'
                 : 'text-white/50 hover:text-white/80 hover:bg-white/5',
             )}
           >
-            {m}
+            {m === 'ALL' ? 'Tümü' : m}
           </button>
         ))}
       </div>
@@ -140,7 +146,7 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
                 transition={{ delay: i * 0.012 }}
                 onClick={() => toggleCourse(c.fullCode)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all',
+                  'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all',
                   selected
                     ? 'bg-su-500/25 border border-su-300/40'
                     : 'glass hover:bg-white/8 border border-transparent',
@@ -161,12 +167,12 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
                 {/* Ders bilgisi */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-su-300">{c.fullCode}</span>
+                    <span className="text-sm font-bold text-su-300">{c.fullCode}</span>
                     <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md font-medium', badge.cls)}>
                       {badge.label}
                     </span>
                   </div>
-                  <p className="text-xs text-white/70 truncate">{c.name}</p>
+                  <p className="text-sm text-white/80 truncate">{c.name}</p>
                 </div>
 
                 {/* ECTS */}

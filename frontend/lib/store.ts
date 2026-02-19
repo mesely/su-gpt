@@ -42,26 +42,112 @@ export interface ChatMessage {
   isWizard?: boolean   // wizard system mesajı (seçim kartları için)
 }
 
+export interface ChatSession {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messages: ChatMessage[]
+}
+
 interface ChatState {
+  sessions: ChatSession[]
+  activeSessionId: string | null
   messages: ChatMessage[]
   isStreaming: boolean
+  newSession: () => string
+  switchSession: (id: string) => void
+  deleteSession: (id: string) => void
   addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => string
   appendToLast: (chunk: string) => void
   setStreaming: (v: boolean) => void
+  setActiveTitle: (title: string) => void
   clearMessages: () => void
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+function uid() {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function titleFromUserText(text: string) {
+  const cleaned = text.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return 'Yeni sohbet'
+  return cleaned.length > 56 ? `${cleaned.slice(0, 56)}...` : cleaned
+}
+
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set) => ({
+  sessions: [],
+  activeSessionId: null,
   messages: [],
   isStreaming: false,
+  newSession: () => {
+    const id = uid()
+    const now = new Date().toISOString()
+    const session: ChatSession = {
+      id,
+      title: 'Yeni sohbet',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+    }
+    set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: id, messages: [] }))
+    return id
+  },
+  switchSession: (id) =>
+    set((s) => {
+      const found = s.sessions.find((x) => x.id === id)
+      if (!found) return s
+      return { activeSessionId: id, messages: found.messages }
+    }),
+  deleteSession: (id) =>
+    set((s) => {
+      const sessions = s.sessions.filter((x) => x.id !== id)
+      if (s.activeSessionId !== id) return { sessions }
+      const next = sessions[0]
+      return {
+        sessions,
+        activeSessionId: next?.id ?? null,
+        messages: next?.messages ?? [],
+      }
+    }),
   addMessage: (msg) => {
-    const id =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
-    set((s) => ({
-      messages: [...s.messages, { ...msg, id, createdAt: new Date() }],
-    }))
+    const id = uid()
+    const now = new Date()
+    const nowIso = now.toISOString()
+    const message: ChatMessage = { ...msg, id, createdAt: now }
+
+    set((s) => {
+      let activeId = s.activeSessionId
+      let sessions = [...s.sessions]
+      if (!activeId) {
+        activeId = uid()
+        sessions = [{
+          id: activeId,
+          title: 'Yeni sohbet',
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          messages: [],
+        }, ...sessions]
+      }
+      const idx = sessions.findIndex((x) => x.id === activeId)
+      if (idx < 0) return s
+
+      const current = sessions[idx]
+      const newMessages = [...current.messages, message]
+      const hasAnyUser = newMessages.some((m) => m.role === 'user')
+      const title = current.title === 'Yeni sohbet' && msg.role === 'user'
+        ? titleFromUserText(msg.content)
+        : current.title
+
+      sessions[idx] = { ...current, title: hasAnyUser ? title : current.title, updatedAt: nowIso, messages: newMessages }
+      sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+      return { sessions, activeSessionId: activeId, messages: newMessages }
+    })
     return id
   },
   appendToLast: (chunk) =>
@@ -72,11 +158,37 @@ export const useChatStore = create<ChatState>((set) => ({
         ...msgs[msgs.length - 1],
         content: msgs[msgs.length - 1].content + chunk,
       }
-      return { messages: msgs }
+      if (!s.activeSessionId) return { messages: msgs }
+      const sessions = s.sessions.map((x) =>
+        x.id === s.activeSessionId
+          ? { ...x, updatedAt: new Date().toISOString(), messages: msgs }
+          : x,
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      return { messages: msgs, sessions }
     }),
   setStreaming: (v) => set({ isStreaming: v }),
-  clearMessages: () => set({ messages: [] }),
-}))
+  setActiveTitle: (title) =>
+    set((s) => {
+      if (!s.activeSessionId) return s
+      const sessions = s.sessions.map((x) =>
+        x.id === s.activeSessionId ? { ...x, title, updatedAt: new Date().toISOString() } : x,
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      return { sessions }
+    }),
+  clearMessages: () =>
+    set((s) => {
+      if (!s.activeSessionId) return { messages: [] }
+      const sessions = s.sessions.map((x) =>
+        x.id === s.activeSessionId
+          ? { ...x, messages: [], updatedAt: new Date().toISOString(), title: 'Yeni sohbet' }
+          : x,
+      )
+      return { messages: [], sessions }
+    }),
+    }),
+    { name: 'su-chat' },
+  ),
+)
 
 // ─── Course Selection (persist: aldığı dersler kayıtlı kalır) ─────────────────
 

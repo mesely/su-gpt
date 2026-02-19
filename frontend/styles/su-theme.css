@@ -48,6 +48,19 @@ body {
     box-shadow: var(--glass-shadow);
   }
 
+  .glass-ultra {
+    background:
+      radial-gradient(120% 120% at 10% 0%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.02) 100%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+  }
+
   .glass-hover {
     transition: all 0.3s ease;
   }
