@@ -1,0 +1,30 @@
+{
+  "name": "course-service",
+  "version": "1.0.0",
+  "description": "SU Advisor — Ders kataloğu ve mezuniyet gRPC servisi",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch",
+    "seed": "ts-node -r tsconfig-paths/register src/data/seed.ts"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.6",
+    "@grpc/proto-loader": "^0.7.13",
+    "@nestjs/common": "^10.3.10",
+    "@nestjs/core": "^10.3.10",
+    "@nestjs/microservices": "^10.3.10",
+    "@nestjs/mongoose": "^10.0.10",
+    "@nestjs/platform-express": "^10.3.10",
+    "mongoose": "^8.4.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@types/node": "^20.14.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "CS": {
+    "major": "CS",
+    "totalEcts": 240,
+    "categories": {
+      "core": {
+        "minEcts": 90,
+        "courses": ["CS201", "CS204", "CS301", "CS303", "CS306", "CS307", "CS401", "CS403", "CS404"]
+      },
+      "area": {
+        "minEcts": 45,
+        "pools": ["NLP_PATH", "CV_PATH", "SYSTEMS_PATH"]
+      },
+      "basicScience": { "minEcts": 30 },
+      "university":   { "minEcts": 18 },
+      "free":         { "minEcts": 20 }
+    },
+    "paths": {
+      "NLP_PATH": {
+        "name": "Natural Language Processing",
+        "requiredCourses": ["CS412", "CS464", "CS514"],
+        "electivePick": { "count": 2, "from": ["CS461", "CS562"] }
+      },
+      "CV_PATH": {
+        "name": "Computer Vision",
+        "requiredCourses": ["CS484", "CS585"],
+        "electivePick": { "count": 2, "from": ["CS489", "CS580"] }
+      },
+      "SYSTEMS_PATH": {
+        "name": "Systems & Control",
+        "requiredCourses": ["EE361", "EE462"],
+        "electivePick": { "count": 2, "from": ["EE465", "EE560"] }
+      }
+    }
+  },
+  "IF": {
+    "major": "IF",
+    "totalEcts": 240,
+    "categories": {
+      "core": {
+        "minEcts": 90,
+        "courses": ["IF100", "IF201", "IF301", "IF302"]
+      },
+      "area":         { "minEcts": 45, "pools": [] },
+      "basicScience": { "minEcts": 30 },
+      "university":   { "minEcts": 18 },
+      "free":         { "minEcts": 20 }
+    },
+    "paths": {}
+  }
+}
