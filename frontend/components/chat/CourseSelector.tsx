@@ -17,8 +17,9 @@ interface CourseSelectorProps {
 export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseSelectorProps) {
   const { token } = useAuthStore()
   const { selectedCourses, toggleCourse } = useCourseSelectionStore()
+  const initialPrefix = initialMajor === 'MAT' ? 'MATH' : initialMajor
 
-  const [activePrefix, setActivePrefix] = useState(initialMajor)
+  const [activePrefix, setActivePrefix] = useState(initialPrefix)
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQ, setSearchQ] = useState('')

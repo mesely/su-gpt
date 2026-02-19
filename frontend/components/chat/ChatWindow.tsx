@@ -399,6 +399,12 @@ export function ChatWindow() {
     if (intent === 'path') return startPathWizard()
 
     setWizard(INITIAL_WIZARD)
+    if (/(sinav|sınav|gecmis sinav|geçmiş sınav)/i.test(cleaned)) {
+      return sendRag(
+        `${cleaned}\n\nEğer veri yoksa bunu açıkça söyle ve resmi kaynak/çıkmış soru PDF'i yoksa tahmin yürütme.`,
+        'course_qa',
+      )
+    }
     sendRag(cleaned)
   }, [sendRag, startGraduationWizard, startPlanWizard, startPathWizard])
 
@@ -517,8 +523,7 @@ export function ChatWindow() {
             <QuickChip label="Mezuniyet Durumu" onClick={startGraduationWizard} disabled={isStreaming} />
             <QuickChip label="Bu dönem ne almalıyım?" onClick={startPlanWizard} disabled={isStreaming} />
             <QuickChip label="Hangi alanda ilerlemeliyim?" onClick={startPathWizard} disabled={isStreaming} />
-            <QuickChip label="Derslerimi güncelle" onClick={() => setShowPanel(true)} disabled={isStreaming} />
-            <QuickChip label="Önceki sınavları sor" onClick={() => setInput('CS204 için önceki sınavlarda en sık çıkan konular neler?')} disabled={isStreaming} />
+            <button onClick={() => setShowPanel(true)} className="text-xs text-white/45 hover:text-white/80 px-2">Derslerimi güncelle</button>
             <button onClick={clearMessages} className="text-xs text-white/35 hover:text-white/70 px-2">Sohbeti temizle</button>
           </div>
 
