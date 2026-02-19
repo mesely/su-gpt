@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, PipelineStage } from 'mongoose';
 import { InstructorReviewDoc, InstructorReviewSchema } from '../schemas/instructor-review.schema';
 import { PendingBatchDoc } from '../schemas/pending-batch.schema';
 import { SentimentService } from './sentiment.service';
@@ -207,7 +207,7 @@ export class ReviewsService {
     const filter: Record<string, unknown> = {};
     if (params.courseCode) filter.courseCode = params.courseCode;
 
-    const pipeline = [
+    const pipeline: PipelineStage[] = [
       { $match: filter },
       {
         $group: {
@@ -219,7 +219,7 @@ export class ReviewsService {
           courses:  { $addToSet: '$courseCode' },
         },
       },
-      { $sort: { totalReviews: -1 } },
+      { $sort: { totalReviews: -1 as const } },
       { $skip: (params.page - 1) * params.pageSize },
       { $limit: params.pageSize },
     ];
