@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Inject,
   OnModuleInit,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +23,7 @@ interface ExamUploadClient {
     file_name: string;
     uploaded_by: string;
   }): Observable<unknown>;
+  deleteExam(data: { exam_id: string }): Observable<unknown>;
 }
 
 @Controller('api/v1/admin/exams')
@@ -49,12 +52,17 @@ export class AdminExamController implements OnModuleInit {
     return firstValueFrom(
       this.svc.uploadExam({
         course_code: body.courseCode,
-        year: body.year,
-        semester: body.semester,
-        type: body.type,
-        file_name: body.fileName,
+        year:        body.year,
+        semester:    body.semester,
+        type:        body.type,
+        file_name:   body.fileName,
         uploaded_by: body.uploadedBy,
       }),
     );
+  }
+
+  @Delete(':id')
+  deleteExam(@Param('id') id: string) {
+    return firstValueFrom(this.svc.deleteExam({ exam_id: id }));
   }
 }

@@ -18,7 +18,10 @@ interface ExamServiceClient {
     year: number;
     semester: string;
     type: string;
+    page: number;
+    page_size: number;
   }): Observable<unknown>;
+  getExam(data: { exam_id: string }): Observable<unknown>;
   getPresignedUrl(data: { exam_id: string }): Observable<unknown>;
 }
 
@@ -39,19 +42,29 @@ export class ExamController implements OnModuleInit {
     @Query('year') year = '0',
     @Query('semester') semester = '',
     @Query('type') type = '',
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
   ) {
     return firstValueFrom(
       this.svc.getExams({
         course_code: courseCode,
-        year: parseInt(year, 10),
+        year:        parseInt(year, 10),
         semester,
         type,
+        page:        parseInt(page, 10),
+        page_size:   parseInt(pageSize, 10),
       }),
     );
   }
 
+  // NOT: ":id/url" ":id"'den önce tanımlanmalı (NestJS route sırası)
   @Get(':id/url')
   getPresignedUrl(@Param('id') id: string) {
     return firstValueFrom(this.svc.getPresignedUrl({ exam_id: id }));
+  }
+
+  @Get(':id')
+  getExam(@Param('id') id: string) {
+    return firstValueFrom(this.svc.getExam({ exam_id: id }));
   }
 }
