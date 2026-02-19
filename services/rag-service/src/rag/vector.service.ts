@@ -44,6 +44,11 @@ export interface SearchResult {
 export class VectorService implements OnModuleInit {
   private readonly logger = new Logger(VectorService.name);
   private readonly chromaBase: string;
+  private readonly provider = (process.env.LLM_PROVIDER ?? 'mistral').toLowerCase();
+  private readonly embedModel =
+    this.provider === 'gemini'
+      ? process.env.GEMINI_EMBED_MODEL ?? 'text-embedding-004'
+      : process.env.MISTRAL_EMBED_MODEL ?? 'mistral-embed';
   private EmbeddingCache: Model<EmbeddingCacheDoc>;
 
   constructor(
@@ -83,7 +88,45 @@ export class VectorService implements OnModuleInit {
     const cached = await this.EmbeddingCache.findOne({ text }).lean().exec();
     if (cached?.embedding) return cached.embedding;
 
-    // Mistral embed API
+    const embedding = await this.embedWithProvider(text);
+
+    // Cache'e kaydet
+    await this.EmbeddingCache.findOneAndUpdate(
+      { text },
+      { text, embedding },
+      { upsert: true },
+    ).exec();
+
+    return embedding;
+  }
+
+  private async embedWithProvider(text: string): Promise<number[]> {
+    if (this.provider === 'gemini') {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error('GEMINI_API_KEY tanımlı değil');
+
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.embedModel}:embedContent?key=${apiKey}`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: {
+            parts: [{ text }],
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Gemini embed hatası: ${err}`);
+      }
+
+      const data = (await res.json()) as { embedding?: { values?: number[] } };
+      const values = data.embedding?.values ?? [];
+      if (!values.length) throw new Error('Gemini embedding boş döndü');
+      return values;
+    }
+
     const apiKey = process.env.MISTRAL_API_KEY;
     if (!apiKey) throw new Error('MISTRAL_API_KEY tanımlı değil');
 
@@ -94,7 +137,7 @@ export class VectorService implements OnModuleInit {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.MISTRAL_EMBED_MODEL ?? 'mistral-embed',
+        model: this.embedModel,
         input: [text],
       }),
     });
@@ -105,16 +148,7 @@ export class VectorService implements OnModuleInit {
     }
 
     const data = (await res.json()) as { data: { embedding: number[] }[] };
-    const embedding = data.data[0].embedding;
-
-    // Cache'e kaydet
-    await this.EmbeddingCache.findOneAndUpdate(
-      { text },
-      { text, embedding },
-      { upsert: true },
-    ).exec();
-
-    return embedding;
+    return data.data[0].embedding;
   }
 
   // ─── Add documents ────────────────────────────────────────────────────────

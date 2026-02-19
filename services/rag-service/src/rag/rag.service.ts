@@ -20,6 +20,19 @@ interface MistralStreamChunk {
   usage?: { prompt_tokens: number; completion_tokens: number };
 }
 
+interface GeminiGenerateResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
 export interface AskParams {
   question: string;
   studentId: string;
@@ -46,8 +59,13 @@ export class RagService {
   private readonly logger = new Logger(RagService.name);
   // Free tier: 5 istek/dakika → güvenli limit olarak 1 istek/sn
   private readonly queue = new PQueue({ intervalCap: 1, interval: 1000 });
-  private readonly apiKey = process.env.MISTRAL_API_KEY ?? '';
-  private readonly model = process.env.MISTRAL_MODEL ?? 'mistral-small-latest';
+  private readonly provider = (process.env.LLM_PROVIDER ?? 'mistral').toLowerCase();
+  private readonly mistralApiKey = process.env.MISTRAL_API_KEY ?? '';
+  private readonly geminiApiKey = process.env.GEMINI_API_KEY ?? '';
+  private readonly model =
+    this.provider === 'gemini'
+      ? process.env.GEMINI_MODEL ?? 'gemini-1.5-flash'
+      : process.env.MISTRAL_MODEL ?? 'mistral-small-latest';
   private readonly maxTokens = parseInt(process.env.MISTRAL_MAX_TOKENS ?? '2048', 10);
   private readonly temperature = parseFloat(process.env.MISTRAL_TEMPERATURE ?? '0.3');
 
@@ -117,13 +135,30 @@ export class RagService {
 
     // 5. Mistral streaming (rate-limited)
     await this.queue.add(async () => {
-      await this.streamMistral(
+      await this.streamByProvider(
         messages,
+        params.question,
+        systemPrompt,
         subject,
         sourceIds,
         contextType,
       );
     });
+  }
+
+  private async streamByProvider(
+    messages: MistralMessage[],
+    question: string,
+    systemPrompt: string,
+    subject: Subject<AskChunk>,
+    sourceIds: string[],
+    contextType: string,
+  ) {
+    if (this.provider === 'gemini') {
+      await this.streamGemini(question, systemPrompt, subject, sourceIds, contextType);
+      return;
+    }
+    await this.streamMistral(messages, subject, sourceIds, contextType);
   }
 
   private async streamMistral(
@@ -136,7 +171,7 @@ export class RagService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.mistralApiKey}`,
       },
       body: JSON.stringify({
         model: this.model,
@@ -209,6 +244,79 @@ export class RagService {
     }
 
     // Stream beklenmedik şekilde bittiyse
+    subject.next({
+      chunk: '',
+      done: true,
+      answer: fullAnswer,
+      sourceChunks: sourceIds,
+      model: this.model,
+      promptTokens,
+      completionTokens,
+      contextType,
+    });
+    subject.complete();
+  }
+
+  private async streamGemini(
+    question: string,
+    systemPrompt: string,
+    subject: Subject<AskChunk>,
+    sourceIds: string[],
+    contextType: string,
+  ) {
+    if (!this.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY tanımlı değil');
+    }
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.geminiApiKey}`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: {
+          role: 'system',
+          parts: [{ text: systemPrompt }],
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: question }],
+          },
+        ],
+        generationConfig: {
+          temperature: this.temperature,
+          maxOutputTokens: this.maxTokens,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gemini API hatası: ${err}`);
+    }
+
+    const data = (await res.json()) as GeminiGenerateResponse;
+    const fullAnswer =
+      data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+    const promptTokens = data.usageMetadata?.promptTokenCount ?? 0;
+    const completionTokens =
+      data.usageMetadata?.candidatesTokenCount ??
+      Math.max(0, (data.usageMetadata?.totalTokenCount ?? 0) - promptTokens);
+
+    for (let i = 0; i < fullAnswer.length; i += 20) {
+      const chunk = fullAnswer.slice(i, i + 20);
+      subject.next({
+        chunk,
+        done: false,
+        answer: '',
+        sourceChunks: [],
+        model: this.model,
+        promptTokens: 0,
+        completionTokens: 0,
+        contextType,
+      });
+    }
+
     subject.next({
       chunk: '',
       done: true,
