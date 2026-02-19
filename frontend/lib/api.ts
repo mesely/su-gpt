@@ -58,8 +58,11 @@ export const api = {
   // RAG — SSE streaming (döner: EventSource-like fetch stream)
   askStream: (token: string, body: AskBody): ReadableStream<string> => {
     const ctrl = new AbortController()
+    const timeoutMs = 45_000
+    let timeout: ReturnType<typeof setTimeout> | undefined
     const stream = new ReadableStream<string>({
       async start(controller) {
+        timeout = setTimeout(() => ctrl.abort(), timeoutMs)
         try {
           const res = await fetch(`${BASE}/rag/ask`, {
             method: 'POST',
@@ -84,12 +87,14 @@ export const api = {
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
+            if (timeout) clearTimeout(timeout)
+            timeout = setTimeout(() => ctrl.abort(), timeoutMs)
             buf += dec.decode(value, { stream: true })
-            const lines = buf.split('\n')
+            const lines = buf.split(/\r?\n/)
             buf = lines.pop() ?? ''          // son yarım satırı buffer'da tut
             for (const line of lines) {
-              if (!line.startsWith('data: ')) continue
-              const json = line.slice(6).trim()
+              if (!line.startsWith('data:')) continue
+              const json = line.slice(5).trim()
               if (json === '[DONE]') { controller.close(); return }
               try {
                 const parsed = JSON.parse(json) as { chunk?: string; done?: boolean; error?: string }
@@ -99,14 +104,27 @@ export const api = {
               } catch { /* skip malformed */ }
             }
           }
+          if (buf.trim().startsWith('data:')) {
+            const json = buf.trim().slice(5).trim()
+            if (json && json !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(json) as { chunk?: string; done?: boolean; error?: string }
+                if (parsed.chunk) controller.enqueue(parsed.chunk)
+                if (parsed.error) controller.enqueue(`\n\n[${parsed.error}]`)
+              } catch { /* skip malformed */ }
+            }
+          }
           controller.close()
         } catch (err) {
           if (err instanceof DOMException && err.name === 'AbortError') {
+            controller.enqueue('\n\n[Bağlantı zaman aşımına uğradı. Tekrar deneyin.]')
             controller.close()
             return
           }
           controller.enqueue(`\n\n[Bağlantı hatası: ${err instanceof Error ? err.message : String(err)}]`)
           controller.close()
+        } finally {
+          if (timeout) clearTimeout(timeout)
         }
       },
       cancel() { ctrl.abort() },

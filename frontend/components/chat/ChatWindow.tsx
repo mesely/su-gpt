@@ -20,6 +20,7 @@ const MAJORS = Object.keys(MAJOR_LABELS)
 
 type WizardType = 'graduation' | 'plan' | 'path' | null
 type WizardStep = 'major-select' | 'course-select' | 'ai-path-select' | 'sending' | null
+type IntentType = 'graduation' | 'plan' | 'path' | null
 
 interface WizardData {
   type: WizardType
@@ -29,6 +30,34 @@ interface WizardData {
 }
 
 const INITIAL_WIZARD: WizardData = { type: null, step: null, major: '', aiPath: null }
+
+function detectIntent(question: string): IntentType {
+  const q = question.toLowerCase().trim()
+  if (!q) return null
+
+  if (
+    q.includes('mezuniyet') ||
+    q.includes('mezun olabilir miyim') ||
+    q.includes('eksik ders')
+  ) return 'graduation'
+
+  if (
+    q.includes('bu dönem') ||
+    q.includes('ne almalıyım') ||
+    q.includes('ders plan') ||
+    q.includes('seneye ne al')
+  ) return 'plan'
+
+  if (
+    q.includes('path') ||
+    q.includes('nlp') ||
+    q.includes('computer vision') ||
+    q.includes('cv') ||
+    q.includes('ai alan')
+  ) return 'path'
+
+  return null
+}
 
 // ─── Öneri üretici (yerel, RAG gerekmez) ──────────────────────────────────────
 
@@ -92,9 +121,18 @@ function buildPlanReply(major: string, aiPath: 'nlp' | 'cv' | null, selected: st
   const pathList = aiPath === 'nlp' ? NLP_COURSES : aiPath === 'cv' ? CV_COURSES : []
   const coreList = major === 'IF' ? CORE_IF : CORE_CS
 
-  const nextCore = coreList.filter(c => !selected.includes(c)).slice(0, 2)
+  const hasCS201 = selected.includes('CS201')
+  const hasCS210 = selected.includes('CS210')
+
+  const forcedCore: string[] = []
+  if (hasCS201 && hasCS210) {
+    if (!selected.includes('CS204')) forcedCore.push('CS204')
+    if (!selected.includes('CS412')) forcedCore.push('CS412')
+  }
+
+  const nextCore = [...forcedCore, ...coreList.filter(c => !selected.includes(c)).filter(c => !forcedCore.includes(c))].slice(0, 2)
   const nextPath = pathList.filter(c => !selected.includes(c)).slice(0, 2)
-  const nextBS   = BASIC_SCI.filter(c => !selected.includes(c)).slice(0, 1)
+  const nextBS   = BASIC_SCI.filter(c => !selected.includes(c)).slice(0, 2)
   const nextFree = FREE_NICE.filter(c => !selected.includes(c)).slice(0, 2)
 
   const recommend = [
@@ -104,13 +142,17 @@ function buildPlanReply(major: string, aiPath: 'nlp' | 'cv' | null, selected: st
     ...nextFree.map(c => `- **${c}** ← Serbest seçmeli / rahatlatıcı`),
   ]
 
-  const altNote = aiPath === 'nlp'
-    ? '🔄 Ders yükünü hafifletmek için **ENS211** yerine **CS310**, **MATH306** yerine **ACC101** alabilirsiniz.'
-    : '🔄 Ders yükünü hafifletmek için seçmeli derslerden birini erteleyebilirsiniz.'
+  const altNote = aiPath === 'cv'
+    ? '🔄 Computer Vision için **EE417** kritik derstir; yoğunluk fazla gelirse bir serbest seçmeliyi sonraya bırak.'
+    : '🔄 Daha kolay bir plan istersen **ENS211** yerine **CS310**, **MATH306** yerine **ACC101** düşünebilirsin.'
+
+  const contextLine = hasCS201 && hasCS210
+    ? 'CS201 ve CS210 aldığını görüyorum, bu yüzden CS204 ve CS412 önceliklendirdim.'
+    : `${selected.length} tamamlanmış dersine göre öneri yaptım.`
 
   return `## Bu Dönem Ders Önerileri — ${major}
 
-**${selected.length} tamamlanmış ders** görüyorum. Bu döneme şunları öneriyorum:
+**${contextLine}** Bu döneme şunları öneriyorum:
 
 ${recommend.join('\n')}
 
@@ -325,13 +367,34 @@ export function ChatWindow() {
     }
   }, [isStreaming, wizard, isComplete, selectedCourses, authMajor, addMessage, markComplete, streamWizardReply])
 
+  const dispatchInput = useCallback((text: string) => {
+    const cleaned = text.trim()
+    if (!cleaned) return
+
+    const intent = detectIntent(cleaned)
+    if (intent === 'graduation') {
+      startGraduationWizard()
+      return
+    }
+    if (intent === 'plan') {
+      startPlanWizard()
+      return
+    }
+    if (intent === 'path') {
+      startPathWizard()
+      return
+    }
+
+    setWizard(INITIAL_WIZARD)   // serbest soru wizard'ı iptal eder
+    sendRag(cleaned)
+  }, [sendRag, startGraduationWizard, startPlanWizard, startPathWizard])
+
   // ── Enter gönder ────────────────────────────────────────────────────────────
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (input.trim()) {
-        setWizard(INITIAL_WIZARD)   // serbest soru wizard'ı iptal eder
-        sendRag(input)
+        dispatchInput(input)
         setInput('')
       }
     }
@@ -339,8 +402,7 @@ export function ChatWindow() {
 
   const handleSend = () => {
     if (input.trim()) {
-      setWizard(INITIAL_WIZARD)
-      sendRag(input)
+      dispatchInput(input)
       setInput('')
     }
   }
@@ -374,6 +436,33 @@ export function ChatWindow() {
           icon="🤖"
           disabled={isStreaming}
           onClick={startPathWizard}
+        />
+        <QuickBtn
+          label="Derslerimi güncelle"
+          icon="🗂"
+          disabled={isStreaming}
+          onClick={() => setShowPanel(true)}
+        />
+        <QuickBtn
+          label="CS derslerini seç"
+          icon="💻"
+          disabled={isStreaming}
+          onClick={() => { setWizard((w) => ({ ...w, major: 'CS' })); setShowPanel(true) }}
+        />
+        <QuickBtn
+          label="Daha kolay plan yap"
+          icon="⚖️"
+          disabled={isStreaming}
+          onClick={() => {
+            addMessage({ role: 'user', content: 'Daha kolay bir dönem istiyorum.' })
+            streamWizardReply(
+              'Daha dengeli bir plan için bu dönem şu alternatifi deneyebiliriz:\n' +
+              '- **CS310** (ENS211 yerine daha yönetilebilir)\n' +
+              '- **ACC101** (MATH306 yerine daha hafif)\n' +
+              '- 1 core + 1 area + 1 serbest seçmeli kombinasyonu\n\n' +
+              'İstersen bunu seçtiğin derslere göre kişiselleştirebilirim.',
+            )
+          }}
         />
 
         {/* Ders paneli toggle */}

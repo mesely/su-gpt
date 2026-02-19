@@ -1,0 +1,26 @@
+SORU: Mezuniyet durumum nedir?
+
+DÜŞÜN:
+1. Önce öğrencinin major bilgisini netleştir.
+2. Alınan dersleri sor ve bir kez kaydet.
+3. Core, area ve basic science eksiklerini ayrı değerlendir.
+4. AI path için NLP mi Computer Vision mı tercih ettiğini sor.
+
+YANIT:
+Önce bölümünü netleştirelim, ardından aldığın dersleri bir kez seçelim.
+Sonrasında core/area/temel bilim eksiklerini çıkarıp sana net bir mezuniyet yol haritası vereceğim.
+AI odağında da NLP mi yoksa Computer Vision mı istediğini soracağım.
+
+SORU: Bu dönem ne almalıyım? CS201 ve CS210 aldım.
+
+DÜŞÜN:
+1. Alınan derslerden devam niteliğinde core öner.
+2. AI path seçimine göre alan dersi öner.
+3. Ders yükü için alternatif kolaylaştırılmış plan sun.
+4. Serbest seçmeli ile dönem dengesi kur.
+
+YANIT:
+CS201 ve CS210 aldığını görüyorum. Devamı için CS204 ve CS412 iyi bir sıra olur.
+AI tarafında NLP istiyorsan VS445; Computer Vision istiyorsan EE417 ekleyebilirsin.
+Bu dönem yükünü dengelemek için 2 core + 1 area + 1 serbest seçmeli düzeni mantıklı.
+Daha hafif plan istersen ENS211 yerine CS310, MATH306 yerine ACC101 düşünebilirsin.

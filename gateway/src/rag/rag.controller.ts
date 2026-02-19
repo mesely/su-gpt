@@ -22,6 +22,7 @@ interface RagServiceClient {
     major: string;
     completed_courses: string[];
     current_semester: number;
+    context_type: string;
   }): Observable<{ chunk: string; done: boolean }>;
   getSimilarChunks(data: {
     text: string;
@@ -51,6 +52,7 @@ export class RagController implements OnModuleInit {
       major: string;
       completedCourses?: string[];
       currentSemester?: number;
+      contextType?: string;
     },
     @Res() res: Response,
   ) {
@@ -65,6 +67,7 @@ export class RagController implements OnModuleInit {
       major: body.major,
       completed_courses: body.completedCourses ?? [],
       current_semester: body.currentSemester ?? 1,
+      context_type: body.contextType ?? 'course_qa',
     });
 
     stream$.subscribe({

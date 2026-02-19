@@ -15,9 +15,20 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 }
 
 export function RequirementGrid({ status }: RequirementGridProps) {
+  const categories = status.categories ?? {}
+  const entries = Object.entries(categories)
+
+  if (entries.length === 0) {
+    return (
+      <GlassCard>
+        <p className="text-sm text-white/60">Kategori verisi henüz bulunamadı.</p>
+      </GlassCard>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {Object.entries(status.categories).map(([key, cat]) => {
+      {entries.map(([key, cat]) => {
         const meta   = CATEGORY_META[key] ?? { label: key, color: '#4d9de0' }
         const pct    = cat.required > 0 ? Math.min((cat.completed / cat.required) * 100, 100) : 0
         const done   = pct >= 100

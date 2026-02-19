@@ -33,7 +33,10 @@ export class PromptBuilder {
     // Few-shot örneklerini birleştir
     const fewShotsDir = path.join(promptsDir, 'few_shots');
     const fewShotFiles = fs.existsSync(fewShotsDir)
-      ? fs.readdirSync(fewShotsDir).filter((f) => f.endsWith('.txt'))
+      ? fs
+          .readdirSync(fewShotsDir)
+          .filter((f) => f.endsWith('.txt'))
+          .filter((f) => !f.toLowerCase().includes('instructor'))
       : [];
     this.fewShots = fewShotFiles
       .map((f) => fs.readFileSync(path.join(fewShotsDir, f), 'utf-8'))

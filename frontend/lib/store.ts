@@ -55,7 +55,10 @@ export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   isStreaming: false,
   addMessage: (msg) => {
-    const id = crypto.randomUUID()
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
     set((s) => ({
       messages: [...s.messages, { ...msg, id, createdAt: new Date() }],
     }))
