@@ -1,0 +1,209 @@
+version: '3.9'
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: su-mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: su-advisor
+    networks:
+      - su-net
+
+  chroma:
+    image: chromadb/chroma:0.5.23
+    container_name: su-chroma
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - su-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: su-minio
+    restart: unless-stopped
+    ports:
+      - '9000:9000'   # S3 API
+      - '9001:9001'   # Web console
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - su-net
+
+  # ─── Bucket init (MinIO) ──────────────────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: su-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
+        mc mb --ignore-existing local/${MINIO_BUCKET_EXAMS:-exam-pdfs} &&
+        echo 'MinIO bucket hazır.'
+      "
+    networks:
+      - su-net
+
+  # ─── Microservices ────────────────────────────────────────────────────────
+  course-svc:
+    build:
+      context: ./services/course-service
+      dockerfile: Dockerfile
+    container_name: su-course-svc
+    restart: unless-stopped
+    ports:
+      - '${COURSE_SERVICE_PORT:-50051}:50051'
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/su-advisor}
+      COURSE_SERVICE_PORT: 50051
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - mongodb
+    networks:
+      - su-net
+
+  rag-svc:
+    build:
+      context: ./services/rag-service
+      dockerfile: Dockerfile
+    container_name: su-rag-svc
+    restart: unless-stopped
+    ports:
+      - '${RAG_SERVICE_PORT:-50052}:50052'
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/su-advisor}
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+      CHROMA_COLLECTION_REVIEWS: ${CHROMA_COLLECTION_REVIEWS:-su_reviews}
+      CHROMA_COLLECTION_EXAMS: ${CHROMA_COLLECTION_EXAMS:-su_exams}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      MISTRAL_EMBED_MODEL: ${MISTRAL_EMBED_MODEL:-mistral-embed}
+      MISTRAL_MAX_TOKENS: ${MISTRAL_MAX_TOKENS:-2048}
+      MISTRAL_TEMPERATURE: ${MISTRAL_TEMPERATURE:-0.3}
+      RAG_SERVICE_PORT: 50052
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - mongodb
+      - chroma
+    networks:
+      - su-net
+
+  instructor-svc:
+    build:
+      context: ./services/instructor-service
+      dockerfile: Dockerfile
+    container_name: su-instructor-svc
+    restart: unless-stopped
+    ports:
+      - '${INSTRUCTOR_SERVICE_PORT:-50053}:50053'
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/su-advisor}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      INSTRUCTOR_SERVICE_PORT: 50053
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - mongodb
+    networks:
+      - su-net
+
+  exam-svc:
+    build:
+      context: ./services/exam-service
+      dockerfile: Dockerfile
+    container_name: su-exam-svc
+    restart: unless-stopped
+    ports:
+      - '${EXAM_SERVICE_PORT:-50054}:50054'
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/su-advisor}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET_EXAMS: ${MINIO_BUCKET_EXAMS:-exam-pdfs}
+      EXAM_SERVICE_PORT: 50054
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - mongodb
+      - minio
+    networks:
+      - su-net
+
+  # ─── API Gateway ──────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: su-gateway
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_PORT:-3000}:3000'
+    environment:
+      GATEWAY_PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      COURSE_SERVICE_HOST: course-svc
+      COURSE_SERVICE_PORT: 50051
+      RAG_SERVICE_HOST: rag-svc
+      RAG_SERVICE_PORT: 50052
+      INSTRUCTOR_SERVICE_HOST: instructor-svc
+      INSTRUCTOR_SERVICE_PORT: 50053
+      EXAM_SERVICE_HOST: exam-svc
+      EXAM_SERVICE_PORT: 50054
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - course-svc
+      - rag-svc
+      - instructor-svc
+      - exam-svc
+    networks:
+      - su-net
+
+  # ─── Frontend ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: su-frontend
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/v1}
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      - gateway
+    networks:
+      - su-net
+
+# ─── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  mongodb_data:
+  chroma_data:
+  minio_data:
+
+# ─── Network ────────────────────────────────────────────────────────────────
+networks:
+  su-net:
+    driver: bridge
