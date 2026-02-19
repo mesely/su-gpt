@@ -60,31 +60,54 @@ export const api = {
     const ctrl = new AbortController()
     const stream = new ReadableStream<string>({
       async start(controller) {
-        const res = await fetch(`${BASE}/rag/ask`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(body),
-          signal: ctrl.signal,
-        })
-        if (!res.body) { controller.close(); return }
-        const reader = res.body.getReader()
-        const dec = new TextDecoder()
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const text = dec.decode(value, { stream: true })
-          for (const line of text.split('\n')) {
-            if (!line.startsWith('data: ')) continue
-            const json = line.slice(6).trim()
-            if (json === '[DONE]') { controller.close(); return }
-            try {
-              const parsed = JSON.parse(json) as { chunk?: string; done?: boolean }
-              if (parsed.chunk) controller.enqueue(parsed.chunk)
-              if (parsed.done) { controller.close(); return }
-            } catch { /* skip */ }
+        try {
+          const res = await fetch(`${BASE}/rag/ask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body),
+            signal: ctrl.signal,
+          })
+          if (!res.ok) {
+            const errText = await res.text().catch(() => `HTTP ${res.status}`)
+            controller.enqueue(`\n\n[Hata ${res.status}: ${errText}]`)
+            controller.close()
+            return
           }
+          if (!res.body) {
+            controller.enqueue('\n\n[Yanıt gövdesi boş]')
+            controller.close()
+            return
+          }
+          const reader = res.body.getReader()
+          const dec = new TextDecoder()
+          let buf = ''
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buf += dec.decode(value, { stream: true })
+            const lines = buf.split('\n')
+            buf = lines.pop() ?? ''          // son yarım satırı buffer'da tut
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue
+              const json = line.slice(6).trim()
+              if (json === '[DONE]') { controller.close(); return }
+              try {
+                const parsed = JSON.parse(json) as { chunk?: string; done?: boolean; error?: string }
+                if (parsed.chunk) controller.enqueue(parsed.chunk)
+                if (parsed.error) controller.enqueue(`\n\n[${parsed.error}]`)
+                if (parsed.done) { controller.close(); return }
+              } catch { /* skip malformed */ }
+            }
+          }
+          controller.close()
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            controller.close()
+            return
+          }
+          controller.enqueue(`\n\n[Bağlantı hatası: ${err instanceof Error ? err.message : String(err)}]`)
+          controller.close()
         }
-        controller.close()
       },
       cancel() { ctrl.abort() },
     })

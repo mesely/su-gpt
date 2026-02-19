@@ -28,7 +28,7 @@ function GraduationContent() {
   const [error, setError]     = useState('')
 
   useEffect(() => {
-    if (!token || !studentId) return
+    if (!token || !studentId) { setLoading(false); return }
     api.getGraduationStatus(token, studentId, { major, semester: '1' })
       .then(setStatus)
       .catch((e: Error) => setError(e.message))
@@ -39,7 +39,7 @@ function GraduationContent() {
   if (error)   return <p className="text-red-400 text-sm">{error}</p>
   if (!status) return null
 
-  const totalPct = Math.round((status.completedEcts / status.totalEcts) * 100)
+  const totalPct = Math.round(((status.completedEcts ?? 0) / (status.totalEcts || 240)) * 100)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -67,7 +67,7 @@ function GraduationContent() {
         <GlassCard>
           <p className="text-xs text-white/40 uppercase tracking-widest mb-4">Kategoriler</p>
           <div className="flex flex-wrap gap-4 justify-center">
-            {Object.entries(status.categories).map(([key, cat]) => (
+            {Object.entries(status.categories ?? {}).map(([key, cat]) => (
               <ProgressRing
                 key={key}
                 label={RING_LABELS[key] ?? key}
@@ -90,11 +90,11 @@ function GraduationContent() {
         </div>
 
         {/* Eksik dersler */}
-        {status.missingCourses.length > 0 && (
+        {(status.missingCourses ?? []).length > 0 && (
           <GlassCard>
             <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Eksik Dersler</p>
             <div className="flex flex-wrap gap-2">
-              {status.missingCourses.map((c) => (
+              {(status.missingCourses ?? []).map((c) => (
                 <GlassBadge key={c} label={c} variant="danger" />
               ))}
             </div>

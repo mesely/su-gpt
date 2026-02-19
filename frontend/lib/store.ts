@@ -39,12 +39,13 @@ export interface ChatMessage {
   content: string
   contextType?: string
   createdAt: Date
+  isWizard?: boolean   // wizard system mesajı (seçim kartları için)
 }
 
 interface ChatState {
   messages: ChatMessage[]
   isStreaming: boolean
-  addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => void
+  addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt'>) => string
   appendToLast: (chunk: string) => void
   setStreaming: (v: boolean) => void
   clearMessages: () => void
@@ -53,13 +54,13 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   isStreaming: false,
-  addMessage: (msg) =>
+  addMessage: (msg) => {
+    const id = crypto.randomUUID()
     set((s) => ({
-      messages: [
-        ...s.messages,
-        { ...msg, id: crypto.randomUUID(), createdAt: new Date() },
-      ],
-    })),
+      messages: [...s.messages, { ...msg, id, createdAt: new Date() }],
+    }))
+    return id
+  },
   appendToLast: (chunk) =>
     set((s) => {
       if (s.messages.length === 0) return s
@@ -73,3 +74,33 @@ export const useChatStore = create<ChatState>((set) => ({
   setStreaming: (v) => set({ isStreaming: v }),
   clearMessages: () => set({ messages: [] }),
 }))
+
+// ─── Course Selection (persist: aldığı dersler kayıtlı kalır) ─────────────────
+
+interface CourseSelectionState {
+  selectedCourses: string[]   // ["CS201", "CS301", ...]
+  isComplete: boolean          // bir kere seçim yapıldı mı
+  toggleCourse: (code: string) => void
+  setCourses: (codes: string[]) => void
+  markComplete: () => void
+  reset: () => void
+}
+
+export const useCourseSelectionStore = create<CourseSelectionState>()(
+  persist(
+    (set) => ({
+      selectedCourses: [],
+      isComplete: false,
+      toggleCourse: (code) =>
+        set((s) => ({
+          selectedCourses: s.selectedCourses.includes(code)
+            ? s.selectedCourses.filter((c) => c !== code)
+            : [...s.selectedCourses, code],
+        })),
+      setCourses: (codes) => set({ selectedCourses: codes }),
+      markComplete: () => set({ isComplete: true }),
+      reset: () => set({ selectedCourses: [], isComplete: false }),
+    }),
+    { name: 'su-courses' },
+  ),
+)

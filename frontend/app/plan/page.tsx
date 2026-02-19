@@ -33,7 +33,7 @@ function PlanContent() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!token || !studentId) return
+    if (!token || !studentId) { setLoading(false); return }
     setLoading(true)
     api.searchCourses(token, { major, pageSize: '25' })
       .then((res) => {
