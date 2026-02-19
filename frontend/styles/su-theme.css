@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Ana renkler — Sabancı kurumsal mavi */
+  --su-blue-900: #002147;
+  --su-blue-700: #003d7a;
+  --su-blue-500: #0057A8;
+  --su-blue-300: #4d9de0;
+  --su-blue-100: #dbeeff;
+  --su-blue-50:  #f0f7ff;
+
+  /* Glassmorphism token'ları */
+  --glass-bg:     rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-blur:   blur(24px);
+  --glass-shadow: 0 8px 32px rgba(0, 33, 71, 0.18);
+
+  /* Durum renkleri */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger:  #ef4444;
+  --color-neutral: #64748b;
+}
+
+/* ─── Genel arka plan ───────────────────────────────────────────────────── */
+body {
+  background: linear-gradient(135deg, #002147 0%, #003d7a 50%, #0057A8 100%);
+  min-height: 100vh;
+  color: #fff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Kaydırma çubuğu ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+
+/* ─── Utility class'lar ─────────────────────────────────────────────────── */
+@layer components {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-hover {
+    transition: all 0.3s ease;
+  }
+  .glass-hover:hover {
+    background: rgba(255,255,255,0.12);
+    box-shadow: 0 12px 40px rgba(0,33,71,0.25);
+  }
+
+  .text-su { color: var(--su-blue-300); }
+  .bg-su   { background: var(--su-blue-700); }
+
+  .badge-success { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-warning { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .badge-danger  { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+  .badge-neutral { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+  .badge-su      { background: rgba(0,87,168,0.25); color: #4d9de0; border: 1px solid rgba(77,157,224,0.3); }
+}
