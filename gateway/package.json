@@ -1,0 +1,34 @@
+{
+  "name": "gateway",
+  "version": "1.0.0",
+  "description": "SU Advisor — HTTP API Gateway",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.6",
+    "@grpc/proto-loader": "^0.7.13",
+    "@nestjs/common": "^10.3.10",
+    "@nestjs/core": "^10.3.10",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/microservices": "^10.3.10",
+    "@nestjs/passport": "^10.0.3",
+    "@nestjs/platform-express": "^10.3.10",
+    "@nestjs/throttler": "^5.2.0",
+    "helmet": "^7.1.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@types/node": "^20.14.2",
+    "@types/passport-jwt": "^4.0.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.5"
+  }
+}
