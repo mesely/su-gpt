@@ -24,7 +24,8 @@ export class CoursesRepository {
     const filter: Record<string, unknown> = {};
 
     if (query) {
-      filter.$text = { $search: query };
+      const rx = { $regex: query, $options: 'i' };
+      filter.$or = [{ name: rx }, { fullCode: rx }, { description: rx }];
     }
     if (major) filter.major = major.toUpperCase();
     if (faculty) filter.faculty = faculty.toUpperCase();
