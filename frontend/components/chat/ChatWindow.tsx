@@ -367,11 +367,12 @@ export function ChatWindow() {
     }
 
     if (step === 'track-select' && payload.track) {
-      addMessage({ role: 'user', content: TRACKS[payload.track].label })
-      setWizard((w) => ({ ...w, track: payload.track }))
+      const trackId: Exclude<Track, null> = payload.track
+      addMessage({ role: 'user', content: TRACKS[trackId].label })
+      setWizard((w) => ({ ...w, track: trackId }))
 
       if (type === 'path') {
-        await streamWizardReply(buildPathReply(payload.track, selectedCourses, courseMap))
+        await streamWizardReply(buildPathReply(trackId, selectedCourses, courseMap))
         setWizard(INITIAL_WIZARD)
         return
       }
