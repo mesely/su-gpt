@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -20,11 +19,6 @@ async function bootstrap() {
     allowedHeaders: ['Authorization', 'Content-Type'],
     credentials: true,
   });
-
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true }),
-  );
 
   await app.listen(port);
   console.log(`Gateway HTTP sunucusu http://0.0.0.0:${port} adresinde çalışıyor.`);

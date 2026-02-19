@@ -1,5 +1,6 @@
 /**
- * Seed scripti: data/201901_bio.jsonl dosyasını okur ve MongoDB'ye upsert eder.
+ * Seed scripti: data/ klasöründeki tüm .jsonl dosyalarını okur ve MongoDB'ye upsert eder.
+ * Klasör yapısı: data/201901/BIO.jsonl, data/201901/CS.jsonl, vb.
  * Çalıştırma: npx ts-node -r tsconfig-paths/register src/data/seed.ts
  */
 import * as fs from 'fs';
@@ -9,7 +10,9 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI =
   process.env.MONGODB_URI ?? 'mongodb://localhost:27017/su-advisor';
-const JSONL_PATH = path.join(__dirname, '../../data/201901_bio.jsonl');
+
+// data/ klasörü: seed.ts → ../../data (dist/data/seed.js → ../../data = /app/data)
+const DATA_DIR = path.join(__dirname, '../../data');
 
 interface RawCourse {
   Major?: string;
@@ -92,22 +95,28 @@ function transformRow(row: RawCourse): CourseDoc {
   };
 }
 
-async function seed() {
-  if (!fs.existsSync(JSONL_PATH)) {
-    console.warn(`JSONL dosyası bulunamadı: ${JSONL_PATH}`);
-    console.warn('Seed atlandı. Dosyayı data/ klasörüne ekleyip tekrar çalıştırın.');
-    process.exit(0);
+/** data/ altındaki tüm .jsonl dosyalarını döndürür (recursive) */
+function collectJsonlFiles(dir: string): string[] {
+  const results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectJsonlFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+      results.push(fullPath);
+    }
   }
+  return results;
+}
 
-  await mongoose.connect(MONGODB_URI);
-  console.log('MongoDB bağlantısı kuruldu.');
-
-  const CourseSchema = new mongoose.Schema({}, { strict: false, collection: 'courses' });
-  const CourseModel =
-    mongoose.models['Course'] ?? mongoose.model('Course', CourseSchema);
-
+async function processFile(
+  filePath: string,
+  model: mongoose.Model<mongoose.Document>,
+): Promise<number> {
   const rl = readline.createInterface({
-    input: fs.createReadStream(JSONL_PATH),
+    input: fs.createReadStream(filePath),
     crlfDelay: Infinity,
   });
 
@@ -121,23 +130,55 @@ async function seed() {
       const raw = JSON.parse(trimmed) as RawCourse;
       batch.push(transformRow(raw));
     } catch {
-      console.warn('JSON parse hatası, satır atlandı.');
+      console.warn(`JSON parse hatası atlandı: ${path.basename(filePath)}`);
     }
 
     if (batch.length >= 100) {
-      await bulkUpsert(CourseModel, batch);
+      await bulkUpsert(model, batch);
       total += batch.length;
-      console.log(`${total} ders işlendi...`);
       batch.length = 0;
     }
   }
 
   if (batch.length > 0) {
-    await bulkUpsert(CourseModel, batch);
+    await bulkUpsert(model, batch);
     total += batch.length;
   }
 
-  console.log(`Seed tamamlandı. Toplam ${total} ders eklendi/güncellendi.`);
+  return total;
+}
+
+async function seed() {
+  const files = collectJsonlFiles(DATA_DIR);
+
+  if (files.length === 0) {
+    console.warn(`Hiç .jsonl dosyası bulunamadı: ${DATA_DIR}`);
+    console.warn(
+      'data/ klasörüne dönemsel klasörler ekleyin (örn: data/201901/CS.jsonl)',
+    );
+    process.exit(0);
+  }
+
+  console.log(`${files.length} adet .jsonl dosyası bulundu.`);
+
+  await mongoose.connect(MONGODB_URI);
+  console.log('MongoDB bağlantısı kuruldu.');
+
+  const CourseSchema = new mongoose.Schema({}, { strict: false, collection: 'courses' });
+  const CourseModel =
+    mongoose.models['Course'] ?? mongoose.model('Course', CourseSchema);
+
+  let grandTotal = 0;
+
+  for (const filePath of files) {
+    const rel = path.relative(DATA_DIR, filePath);
+    process.stdout.write(`  ${rel} işleniyor... `);
+    const count = await processFile(filePath, CourseModel);
+    grandTotal += count;
+    console.log(`${count} ders`);
+  }
+
+  console.log(`\nSeed tamamlandı. Toplam ${grandTotal} ders eklendi/güncellendi.`);
   await mongoose.disconnect();
 }
 
