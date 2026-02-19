@@ -5,7 +5,7 @@ import { api, Course } from '@/lib/api'
 import { useAuthStore, useCourseSelectionStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const PREFIXES = ['ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'HIST', 'TLL', 'AL', 'HUM', 'SPS', 'NS', 'ENS', 'ECON', 'PSYC']
+const PREFIXES = ['ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'HIST', 'TLL', 'AL', 'HUM', 'SPS', 'NS', 'ENS', 'ECON', 'PSYC', 'BIO']
 
 interface CourseSelectorProps {
   /** Hangi sekme açık başlasın */
@@ -29,14 +29,28 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
     setLoading(true)
     setCourses([])
     try {
-      const res = await api.searchCourses(token, { pageSize: '5000' })
+      if (activePrefix === 'ALL' && !searchQ.trim()) {
+        setCourses([])
+        return
+      }
+
+      const params: Record<string, string> = {}
+      if (activePrefix === 'ALL') {
+        params.q = searchQ.trim()
+        params.pageSize = '300'
+      } else {
+        params.q = `^${activePrefix}`
+        params.pageSize = '2500'
+      }
+
+      const res = await api.searchCourses(token, params)
       setCourses((res.courses ?? []).sort((a, b) => a.fullCode.localeCompare(b.fullCode)))
     } catch {
       setCourses([])
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, activePrefix, searchQ])
 
   useEffect(() => { fetchCourses() }, [fetchCourses])
 
@@ -126,7 +140,9 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
           </div>
         )}
         {!loading && filtered.length === 0 && (
-          <p className="text-xs text-white/30 text-center py-8">Ders bulunamadı</p>
+          <p className="text-xs text-white/30 text-center py-8">
+            {activePrefix === 'ALL' && !searchQ.trim() ? 'Tum dersleri listelemek cok buyuk. Arama yaz veya bir kod sekmesi sec.' : 'Ders bulunamadi'}
+          </p>
         )}
         <AnimatePresence>
           {!loading && filtered.map((c, i) => {

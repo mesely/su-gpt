@@ -8,22 +8,36 @@ import { api, Course } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const MAJOR_LABELS: Record<string, string> = {
-  CS: 'Bilgisayar Bil.', IF: 'Bilgi Sistemleri', EE: 'Elektrik-Elektronik',
-  ME: 'Makine Müh.', IE: 'Endüstri Müh.', MAT: 'Matematik', BIO: 'Biyoloji',
+  CS: 'Bilgisayar Bil.',
+  IF: 'Bilgi Sistemleri',
+  EE: 'Elektrik-Elektronik',
+  ME: 'Makine Muh.',
+  IE: 'Endustri Muh.',
+  MAT: 'Matematik',
+  BIO: 'Biyoloji',
+  ECON: 'Ekonomi',
 }
+
 const MAJORS = Object.keys(MAJOR_LABELS)
 
 type WizardType = 'graduation' | 'plan' | 'path' | null
-type WizardStep = 'major-select' | 'course-select' | 'track-select' | 'difficulty-select' | 'sending' | null
+type WizardStep =
+  | 'major-select'
+  | 'course-select'
+  | 'profile-select'
+  | 'track-select'
+  | 'difficulty-select'
+  | 'sending'
+  | null
 type IntentType = 'graduation' | 'plan' | 'path' | null
-type Track = 'ai_nlp' | 'ai_cv' | 'control' | 'fullstack' | 'crypto' | 'arttech' | null
 type Difficulty = 'easy' | 'balanced' | 'hard' | null
 
 interface WizardData {
   type: WizardType
   step: WizardStep
   major: string
-  track: Track
+  selectedTracks: string[]
+  profileTags: string[]
   difficulty: Difficulty
 }
 
@@ -31,160 +45,310 @@ const INITIAL_WIZARD: WizardData = {
   type: null,
   step: null,
   major: '',
-  track: null,
+  selectedTracks: [],
+  profileTags: [],
   difficulty: null,
 }
 
-const REQUIRED_CS = ['CS201', 'CS204', 'CS300', 'CS301', 'CS303', 'CS306', 'CS308', 'CS395', 'ENS491', 'ENS492', 'MATH203', 'MATH204', 'MATH212', 'PHYS113']
-const UNIVERSITY_CS = ['IF100', 'MATH101', 'MATH102', 'SPS101', 'SPS102', 'TLL101', 'TLL102', 'HIST191', 'HIST192', 'AL102', 'NS101', 'NS102', 'PROJ201', 'SPS303']
-const BASIC_SCI = ['MATH101', 'MATH102', 'MATH203', 'MATH204', 'MATH212', 'PHYS113', 'NS101', 'NS102']
+interface TrackOption {
+  id: string
+  label: string
+  description: string
+  courses: string[]
+  tags: string[]
+}
 
-const TRACKS: Record<Exclude<Track, null>, { label: string; courses: string[]; detail: string }> = {
-  ai_nlp: {
-    label: 'AI - NLP',
-    courses: ['CS412', 'VS445', 'CS464', 'CS461', 'CS514'],
-    detail: 'NLP için önerilen sıra: CS412 -> VS445 -> CS464',
+const COMMON_TRACKS: TrackOption[] = [
+  {
+    id: 'ai_general',
+    label: 'AI / Data',
+    description: 'Modelleme, veri ve uygulama odakli yol.',
+    courses: ['CS412', 'MATH203', 'MATH204', 'ECON201'],
+    tags: ['math', 'ml', 'analysis'],
   },
-  ai_cv: {
-    label: 'AI - Computer Vision',
-    courses: ['EE417', 'CS484', 'CS585', 'CS489'],
-    detail: 'CV için önerilen sıra: EE417 -> CS484 -> CS585',
+  {
+    id: 'product',
+    label: 'Product & Analytics',
+    description: 'Urun, metrik ve is odakli teknik yon.',
+    courses: ['IF100', 'ECON201', 'SPS303', 'CS306'],
+    tags: ['product', 'analysis', 'business'],
   },
-  control: {
-    label: 'Control / Systems',
-    courses: ['ENS211', 'EE202', 'ME301', 'ME402'],
-    detail: 'IE/ME öğrencileri için kontrol odaklı bir yol.',
+  {
+    id: 'systems',
+    label: 'Systems',
+    description: 'Sistem, performans ve altyapi agirlikli.',
+    courses: ['CS307', 'CS403', 'CS405', 'EE202'],
+    tags: ['systems', 'hardware', 'coding'],
   },
-  fullstack: {
-    label: 'Full Stack Engineer',
-    courses: ['CS306', 'CS308', 'CS405', 'CS412'],
-    detail: 'Backend + yazılım mühendisliği ağırlıklı ilerleme.',
+  {
+    id: 'design_tech',
+    label: 'Design + Tech',
+    description: 'Yaraticilik ve teknoloji kesisimi.',
+    courses: ['HUM312', 'VACD201', 'CS306', 'SPS303'],
+    tags: ['design', 'product', 'coding'],
   },
-  crypto: {
-    label: 'Kriptografi / Güvenlik',
-    courses: ['CS403', 'CS404', 'CS406', 'MATH306'],
-    detail: 'Kripto-güvenlik için matematik + sistem yaklaşımı.',
+  {
+    id: 'research',
+    label: 'Research',
+    description: 'Teorik derinlik ve proje odakli gelisim.',
+    courses: ['MATH306', 'ENS491', 'ENS492', 'CS301'],
+    tags: ['math', 'analysis', 'research'],
   },
-  arttech: {
-    label: 'Art & Technology',
-    courses: ['VACD101', 'VACD201', 'HUM312', 'CS306'],
-    detail: 'Sanat-teknoloji kesişimi için hibrit yol.',
-  },
+]
+
+const MAJOR_TRACKS: Record<string, TrackOption[]> = {
+  CS: [
+    {
+      id: 'ai_nlp',
+      label: 'AI - NLP',
+      description: 'Dogal dil isleme, LLM ve metin madenciligi.',
+      courses: ['CS412', 'VS445', 'CS464', 'CS461', 'CS514'],
+      tags: ['ml', 'coding', 'analysis'],
+    },
+    {
+      id: 'ai_cv',
+      label: 'AI - Computer Vision',
+      description: 'Goruntu isleme, derin ogrenme ve algi.',
+      courses: ['EE417', 'CS484', 'CS585', 'MATH203'],
+      tags: ['ml', 'math', 'coding'],
+    },
+    {
+      id: 'fullstack',
+      label: 'Full Stack Engineer',
+      description: 'Backend + frontend + yazilim muhendisligi.',
+      courses: ['CS306', 'CS308', 'CS405', 'CS412', 'CS403'],
+      tags: ['coding', 'product', 'systems'],
+    },
+    {
+      id: 'crypto',
+      label: 'Kriptografi / Guvenlik',
+      description: 'Guvenli sistemler, protokoller ve teori.',
+      courses: ['CS403', 'CS404', 'CS406', 'MATH306', 'CS301'],
+      tags: ['math', 'systems', 'coding'],
+    },
+    {
+      id: 'data_eng',
+      label: 'Data Engineering',
+      description: 'Veri tabani, pipeline, dagitik sistem.',
+      courses: ['CS306', 'CS307', 'CS405', 'IE301'],
+      tags: ['systems', 'analysis', 'coding'],
+    },
+    {
+      id: 'control_cs',
+      label: 'Control & Robotics',
+      description: 'Kontrol, gomulu ve robotik baglantisi.',
+      courses: ['ENS211', 'EE202', 'ME301', 'CS412'],
+      tags: ['hardware', 'math', 'coding'],
+    },
+  ],
+  IE: [
+    {
+      id: 'ie_analytics',
+      label: 'Analytics',
+      description: 'Veri analizi ve karar destek.',
+      courses: ['IE303', 'IE304', 'MATH203', 'CS412'],
+      tags: ['analysis', 'math', 'business'],
+    },
+    {
+      id: 'ie_optimization',
+      label: 'Optimization',
+      description: 'Modelleme ve optimizasyon agirlikli.',
+      courses: ['IE302', 'IE306', 'MATH204', 'MATH306'],
+      tags: ['math', 'analysis', 'research'],
+    },
+    {
+      id: 'ie_supply',
+      label: 'Supply Chain',
+      description: 'Lojistik, planlama ve operasyon.',
+      courses: ['IE312', 'IE314', 'ECON201', 'MAN202'],
+      tags: ['business', 'analysis', 'product'],
+    },
+    {
+      id: 'ie_control',
+      label: 'Control Path',
+      description: 'IE + kontrol/sistem hibriti.',
+      courses: ['ENS211', 'EE202', 'IE303', 'ME301'],
+      tags: ['math', 'hardware', 'systems'],
+    },
+    {
+      id: 'ie_product',
+      label: 'Product Operations',
+      description: 'Urun-karar-metrik odakli teknik yon.',
+      courses: ['IE303', 'CS306', 'SPS303', 'MAN201'],
+      tags: ['product', 'business', 'analysis'],
+    },
+  ],
+  ME: [
+    {
+      id: 'me_control',
+      label: 'Control Systems',
+      description: 'Kontrol teorisi ve dinamik sistemler.',
+      courses: ['ENS211', 'ME301', 'EE202', 'MATH212'],
+      tags: ['math', 'hardware', 'systems'],
+    },
+    {
+      id: 'me_robotics',
+      label: 'Robotics',
+      description: 'Mekatronik, algi, kontrol.',
+      courses: ['ME301', 'EE202', 'CS412', 'ENS491'],
+      tags: ['hardware', 'coding', 'systems'],
+    },
+    {
+      id: 'me_energy',
+      label: 'Energy / Thermal',
+      description: 'Enerji sistemleri ve termal analiz.',
+      courses: ['ME3XX', 'MATH203', 'PHYS113', 'ECON201'],
+      tags: ['math', 'analysis', 'research'],
+    },
+    {
+      id: 'me_design',
+      label: 'Mechanical Design',
+      description: 'Tasarim, imalat ve urun gelistirme.',
+      courses: ['ME2XX', 'ME3XX', 'MAN201', 'ENS492'],
+      tags: ['design', 'product', 'hardware'],
+    },
+    {
+      id: 'me_manufacturing',
+      label: 'Manufacturing',
+      description: 'Uretim sistemleri ve proses iyilestirme.',
+      courses: ['ME3XX', 'IE312', 'IE303', 'MAN202'],
+      tags: ['systems', 'business', 'analysis'],
+    },
+  ],
+  EE: [
+    {
+      id: 'ee_embedded',
+      label: 'Embedded Systems',
+      description: 'Gomulu yazilim ve donanim butunlugu.',
+      courses: ['EE202', 'EE3XX', 'CS307', 'CS308'],
+      tags: ['hardware', 'coding', 'systems'],
+    },
+    {
+      id: 'ee_signal',
+      label: 'Signals & DSP',
+      description: 'Sinyal isleme ve matematiksel modelleme.',
+      courses: ['EE3XX', 'MATH203', 'MATH212', 'CS412'],
+      tags: ['math', 'analysis', 'hardware'],
+    },
+    {
+      id: 'ee_control',
+      label: 'Control Path',
+      description: 'Kontrol, otomasyon ve sistem tasarimi.',
+      courses: ['ENS211', 'EE202', 'ME301', 'MATH212'],
+      tags: ['math', 'systems', 'hardware'],
+    },
+    {
+      id: 'ee_power',
+      label: 'Power Systems',
+      description: 'Enerji ve guc sistemleri yonu.',
+      courses: ['EE3XX', 'PHYS113', 'MATH203', 'ECON201'],
+      tags: ['hardware', 'analysis', 'research'],
+    },
+    {
+      id: 'ee_ai_hardware',
+      label: 'AI on Hardware',
+      description: 'AI algoritmalarinin donanim uygulamasi.',
+      courses: ['CS412', 'EE417', 'EE202', 'CS403'],
+      tags: ['ml', 'hardware', 'coding'],
+    },
+  ],
+}
+
+const PROFILE_OPTIONS = [
+  { id: 'coding', label: 'Kod yazmayi seviyorum' },
+  { id: 'math', label: 'Matematik/modelleme seviyorum' },
+  { id: 'analysis', label: 'Veri analizi ilgimi cekiyor' },
+  { id: 'systems', label: 'Sistem/altyapi ilgimi cekiyor' },
+  { id: 'hardware', label: 'Donanim/robotik ilgimi cekiyor' },
+  { id: 'product', label: 'Urun/insan odakli seyler seviyorum' },
+  { id: 'design', label: 'Tasarim/yaratici isler seviyorum' },
+  { id: 'business', label: 'Isletme/yonetim tarafi ilgimi cekiyor' },
+]
+
+const MAJOR_CORE_HINTS: Record<string, string[]> = {
+  CS: ['CS201', 'CS204', 'CS300', 'CS301', 'CS303', 'CS306', 'CS308', 'CS395', 'ENS491', 'ENS492', 'MATH203', 'MATH204', 'MATH212', 'PHYS113'],
+  IE: ['MATH203', 'MATH204', 'ENS211'],
+  EE: ['MATH203', 'MATH212', 'PHYS113', 'EE202'],
+  ME: ['MATH203', 'MATH212', 'PHYS113', 'ME301'],
+}
+
+const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
+  easy: ['SPS303', 'HUM201'],
+  balanced: ['SPS303', 'ECON201'],
+  hard: ['MATH306', 'ENS211'],
 }
 
 function detectIntent(question: string): IntentType {
   const q = question.toLowerCase().trim()
   if (!q) return null
-  if (q.includes('mezuniyet') || q.includes('eksik ders')) return 'graduation'
-  if (q.includes('bu dönem') || q.includes('ne almalıyım') || q.includes('plan')) return 'plan'
-  if (q.includes('hangi alanda') || q.includes('path') || q.includes('cv') || q.includes('nlp')) return 'path'
+  if (q.includes('mezuniyet') || q.includes('eksik ders') || q.includes('graduation')) return 'graduation'
+  if (q.includes('bu donem') || q.includes('ne almaliyim') || q.includes('plan')) return 'plan'
+  if (q.includes('hangi alanda') || q.includes('path') || q.includes('alan') || q.includes('ilerlemeliyim')) return 'path'
   return null
 }
 
-function trackLabel(track: Track) {
-  if (!track) return 'Genel'
-  return TRACKS[track].label
-}
-
 function shortCourse(code: string, map: Map<string, Course>) {
-  const course = map.get(code)
-  if (!course) return `- **${code}**`
-  return `- **${code}** - ${course.name}${course.description ? ` - ${course.description.slice(0, 90)}...` : ''}`
+  const c = map.get(code)
+  if (!c) return `- **${code}**`
+  const desc = c.description ? ` - ${c.description.replace(/\s+/g, ' ').slice(0, 120)}...` : ''
+  return `- **${code}** - ${c.name}${desc}`
 }
 
-function buildGraduationReply(major: string, selected: string[], map: Map<string, Course>) {
-  const reqCore = major === 'CS' ? REQUIRED_CS : []
-  const reqUni = major === 'CS' ? UNIVERSITY_CS : []
-
-  const missingCore = reqCore.filter((c) => !selected.includes(c))
-  const missingUni = reqUni.filter((c) => !selected.includes(c))
-  const missingBS = BASIC_SCI.filter((c) => !selected.includes(c))
-
-  return `## Mezuniyet Durumu - ${major}
-
-Seçtiğin **${selected.length} ders** üzerinden mezuniyet yeterliliklerine göre hesapladım.
-
-### Zorunlu Dersler
-${missingCore.length ? missingCore.slice(0, 6).map((c) => shortCourse(c, map)).join('\n') : '✅ Zorunlu dersler tamam görünüyor.'}
-
-### Üniversite Dersleri (HIST/TLL/AL dahil)
-${missingUni.length ? missingUni.slice(0, 6).map((c) => shortCourse(c, map)).join('\n') : '✅ Üniversite dersleri kısmı tamam görünüyor.'}
-
-### Temel Bilim
-${missingBS.length ? missingBS.slice(0, 4).map((c) => shortCourse(c, map)).join('\n') : '✅ Temel bilim gereklilikleri tamam görünüyor.'}
-
-Not: Bu çıktı Degree Evaluation yerine geçmez; resmi sayım için sistem çıktısını doğrula.`
-}
-
-function buildGraduationFromStatus(status: {
-  completedEcts?: number
-  totalEcts?: number
-  categories?: Record<string, { required: number; completed: number }>
-  missingCourses?: string[]
-  estimatedSemestersLeft?: number
-}, major: string, map: Map<string, Course>) {
-  const cats = status.categories ?? {}
-  const catLines = Object.entries(cats).map(([k, v]) => `- **${k}**: ${v.completed}/${v.required}`)
-  const missing = (status.missingCourses ?? []).slice(0, 8)
-  return `## Mezuniyet Durumu - ${major}
-
-Toplam: **${status.completedEcts ?? 0}/${status.totalEcts ?? 240} ECTS**
-${catLines.length ? `\n${catLines.join('\n')}` : ''}
-
-### Eksik derslerden örnekler
-${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Eksik ders listesi bulunamadı.'}
-
-Tahmini kalan dönem: **${status.estimatedSemestersLeft ?? '?'}**`
-}
-
-function buildPlanReply(major: string, selected: string[], track: Track, difficulty: Difficulty, map: Map<string, Course>) {
-  const trackCourses = track ? TRACKS[track].courses : []
-  const corePool = major === 'CS' ? REQUIRED_CS : []
-
-  const nextCore = corePool.filter((c) => !selected.includes(c)).slice(0, difficulty === 'hard' ? 4 : 2)
-  const nextTrack = trackCourses.filter((c) => !selected.includes(c)).slice(0, difficulty === 'easy' ? 1 : 2)
-  const helper = difficulty === 'easy'
-    ? ['ACC101', 'HUM201']
-    : difficulty === 'hard'
-    ? ['MATH306', 'ENS211']
-    : ['SPS303', 'ECON201']
-
-  const list = [...nextCore, ...nextTrack, ...helper].filter((v, i, a) => a.indexOf(v) === i)
-
-  return `## Bu Dönem Ne Almalıyım? - ${major}
-
-Seçilen alan: **${trackLabel(track)}** · Zorluk: **${difficulty ?? 'balanced'}**
-
-${list.map((c) => shortCourse(c, map)).join('\n')}
-
-${track ? `\nYol Notu: ${TRACKS[track].detail}` : ''}
-
-Daha kolay ister misin? "daha kolay" yaz. Daha zor istersen "daha zor" yaz.`
-}
-
-function buildPathReply(track: Track, selected: string[], map: Map<string, Course>) {
-  if (!track) {
-    return 'Hangi alana ilerlemek istediğini seçersen sana o alana özel ders patikası çıkarırım.'
+function normalizeCategories(status: unknown) {
+  const payload = status as Record<string, unknown>
+  if (Array.isArray(payload.categoryStatuses)) {
+    return payload.categoryStatuses
+      .map((raw) => raw as Record<string, unknown>)
+      .map((c) => ({
+        key: String(c.category ?? 'unknown'),
+        completed: Number(c.completedEcts ?? 0),
+        required: Number(c.requiredEcts ?? 0),
+        missingCourses: Array.isArray(c.missingCourses) ? (c.missingCourses as string[]) : [],
+      }))
   }
-  const cfg = TRACKS[track]
-  const done = cfg.courses.filter((c) => selected.includes(c))
-  const missing = cfg.courses.filter((c) => !selected.includes(c))
-  const pct = Math.round((done.length / cfg.courses.length) * 100)
 
-  return `## Alan Yolu - ${cfg.label}
+  if (payload.categories && typeof payload.categories === 'object') {
+    return Object.entries(payload.categories as Record<string, Record<string, unknown>>).map(([key, value]) => ({
+      key,
+      completed: Number(value.completed ?? 0),
+      required: Number(value.required ?? 0),
+      missingCourses: Array.isArray(value.courses) ? (value.courses as string[]) : [],
+    }))
+  }
 
-Tamamlanma: **%${pct}** (${done.length}/${cfg.courses.length})
+  return []
+}
 
-### Kalan dersler
-${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : '✅ Bu yol için önerilen dersler tamam.'}
+function getTrackOptions(major: string): TrackOption[] {
+  const list = MAJOR_TRACKS[major] ?? COMMON_TRACKS
+  return [
+    ...list,
+    {
+      id: 'undecided',
+      label: 'Kararsizim',
+      description: 'Dengeli bir kesif yolu: temel + farkli alanlardan secmeli.',
+      courses: ['SPS303', 'ECON201', 'CS306', 'MATH203'],
+      tags: ['analysis', 'product'],
+    },
+  ]
+}
 
-${cfg.detail}`
+function rankTracksByProfile(major: string, profileTags: string[]): TrackOption[] {
+  const options = getTrackOptions(major)
+  if (profileTags.length === 0) return options
+
+  return [...options].sort((a, b) => {
+    const scoreA = a.tags.filter((t) => profileTags.includes(t)).length
+    const scoreB = b.tags.filter((t) => profileTags.includes(t)).length
+    if (scoreB !== scoreA) return scoreB - scoreA
+    return a.label.localeCompare(b.label)
+  })
 }
 
 async function streamText(text: string, onChunk: (c: string) => void) {
   for (let i = 0; i < text.length; i++) {
     onChunk(text[i])
-    if (i % 8 === 0) await new Promise((r) => setTimeout(r, 9))
+    if (i % 8 === 0) await new Promise((r) => setTimeout(r, 7))
   }
 }
 
@@ -219,21 +383,29 @@ export function ChatWindow() {
     if (!activeSessionId) newSession()
   }, [activeSessionId, newSession])
 
-  useEffect(() => {
-    if (!token) return
-    api.searchCourses(token, { pageSize: '5000' })
-      .then((res) => {
-        const map = new Map<string, Course>()
-        for (const c of res.courses ?? []) map.set(c.fullCode, c)
-        setCourseMap(map)
-      })
-      .catch(() => setCourseMap(new Map()))
-  }, [token])
-
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [sessions],
   )
+
+  const hydrateCourses = useCallback(async (codes: string[]) => {
+    if (!token || codes.length === 0) return courseMap
+    const map = new Map(courseMap)
+    const needs = codes.filter((c) => c && !map.has(c))
+    if (needs.length === 0) return map
+
+    await Promise.all(needs.map(async (code) => {
+      try {
+        const c = await api.getCourse(token, code)
+        map.set(c.fullCode, c)
+      } catch {
+        // ignore missing course rows
+      }
+    }))
+
+    setCourseMap(map)
+    return map
+  }, [token, courseMap])
 
   const streamWizardReply = useCallback(async (text: string) => {
     addMessage({ role: 'assistant', content: '' })
@@ -241,6 +413,137 @@ export function ChatWindow() {
     await streamText(text, appendToLast)
     setStreaming(false)
   }, [addMessage, appendToLast, setStreaming])
+
+  const formatGraduationReply = useCallback(async (major: string, status: unknown) => {
+    const payload = status as Record<string, unknown>
+    const categories = normalizeCategories(status)
+
+    const totalCompleted = Number(payload.totalCompletedEcts ?? payload.completedEcts ?? 0)
+    const totalRequired = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 240)
+    const estimated = Number(payload.estimatedSemestersLeft ?? payload.estimatedSemesters ?? 0)
+
+    const missingCodesFromCategories = categories.flatMap((c) => c.missingCourses)
+    const missingCodesRaw = Array.isArray(payload.missingCourses) ? (payload.missingCourses as string[]) : []
+    const missingCodes = Array.from(new Set([...missingCodesRaw, ...missingCodesFromCategories])).slice(0, 12)
+    const map = await hydrateCourses(missingCodes)
+
+    const categoryName: Record<string, string> = {
+      core: 'Zorunlu / Cekirdek',
+      area: 'Alan Secmeli',
+      basicScience: 'Temel Bilim',
+      free: 'Serbest Secmeli',
+      university: 'Universite Dersleri',
+      engineering: 'Muhendislik',
+      faculty: 'Fakulte',
+    }
+
+    const categoryLines = categories.length
+      ? categories.map((c) => {
+        const remain = Math.max(0, c.required - c.completed)
+        return `- **${categoryName[c.key] ?? c.key}**: ${c.completed}/${c.required} ECTS (kalan: ${remain})`
+      }).join('\n')
+      : '- Kategori detayi donmedi. Bu major icin yukumluluk dosyasini kontrol etmek gerekiyor.'
+
+    const missingLines = missingCodes.length
+      ? missingCodes.map((code) => shortCourse(code, map)).join('\n')
+      : 'Eksik ders listesi bulunamadi.'
+
+    const warning = totalCompleted === 0 && selectedCourses.length > 0
+      ? '\n\nNot: Secili ders var ama backend bu major icin eslesme yapamadi. Kod formatini veya major secimini kontrol et.'
+      : ''
+
+    return `## Mezuniyet Durumu - ${major}
+
+Toplam: **${totalCompleted}/${totalRequired} ECTS**
+
+### Kategori Bazli Kalanlar
+${categoryLines}
+
+### Eksik Derslerden Ornekler
+${missingLines}
+
+Tahmini kalan donem: **${estimated || '?'}**${warning}`
+  }, [hydrateCourses, selectedCourses.length])
+
+  const formatFallbackGraduationReply = useCallback(async (major: string) => {
+    const core = MAJOR_CORE_HINTS[major] ?? []
+    const missing = core.filter((c) => !selectedCourses.includes(c)).slice(0, 10)
+    const map = await hydrateCourses(missing)
+
+    return `## Mezuniyet Durumu - ${major}
+
+Sectigin **${selectedCourses.length} ders** uzerinden yerel bir kontrol yaptim.
+
+### Eksik Cekirdek Ornekleri
+${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgin cekirdek eksigi gorunmuyor.'}
+
+Daha net kategori bazli sonuc icin mezuniyet endpoint cevabini da kontrol etmek gerekiyor.`
+  }, [hydrateCourses, selectedCourses])
+
+  const runGraduationAnalysis = useCallback(async (major: string) => {
+    if (token && studentId) {
+      try {
+        const status = await api.getGraduationStatus(token, studentId, {
+          major,
+          semester: '1',
+          completed: selectedCourses.join(','),
+        })
+        const text = await formatGraduationReply(major, status)
+        await streamWizardReply(text)
+        return
+      } catch {
+        // fallback below
+      }
+    }
+
+    const text = await formatFallbackGraduationReply(major)
+    await streamWizardReply(text)
+  }, [formatFallbackGraduationReply, formatGraduationReply, selectedCourses, streamWizardReply, studentId, token])
+
+  const formatPlanReply = useCallback(async (major: string, trackIds: string[], difficulty: Exclude<Difficulty, null>) => {
+    const tracks = rankTracksByProfile(major, wizard.profileTags).filter((t) => trackIds.includes(t.id))
+    const trackCourses = tracks.flatMap((t) => t.courses)
+
+    const corePool = MAJOR_CORE_HINTS[major] ?? []
+    const coreNeed = corePool.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 3 : difficulty === 'balanced' ? 2 : 1)
+    const trackNeed = trackCourses.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 4 : difficulty === 'balanced' ? 3 : 2)
+    const helper = SUPPORTER_COURSES[difficulty]
+
+    const finalList = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
+    const map = await hydrateCourses(finalList)
+    const trackLabel = tracks.map((t) => t.label).join(' + ')
+
+    return `## Bu Donem Ne Almaliyim? - ${major}
+
+Secilen alan: **${trackLabel || 'Karisik'}** · Zorluk: **${difficulty}**
+
+${finalList.map((c) => shortCourse(c, map)).join('\n')}
+
+Yol notu: ${tracks.length ? tracks.map((t) => t.description).join(' | ') : 'Dengeli ilerleme secildi.'}
+
+Yeni alternatif istersen \"daha kolay\" veya \"daha zor\" yaz.`
+  }, [hydrateCourses, selectedCourses, wizard.profileTags])
+
+  const formatPathReply = useCallback(async (major: string, trackIds: string[]) => {
+    const tracks = rankTracksByProfile(major, wizard.profileTags).filter((t) => trackIds.includes(t.id))
+    const allCodes = Array.from(new Set(tracks.flatMap((t) => t.courses)))
+    const map = await hydrateCourses(allCodes)
+
+    const sections = tracks.map((track) => {
+      const done = track.courses.filter((c) => selectedCourses.includes(c)).length
+      const total = track.courses.length
+      const pct = total ? Math.round((done / total) * 100) : 0
+      const missing = track.courses.filter((c) => !selectedCourses.includes(c)).slice(0, 6)
+
+      return `### ${track.label}\nTamamlanma: **%${pct}** (${done}/${total})\n${track.description}\n${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Bu alan icin onerilen derslerin cogu tamam.'}`
+    })
+
+    return `## Hangi Alanda Ilerlemeliyim?
+
+Profil secimlerin: **${wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Belirtilmedi'}**
+
+${sections.join('\n\n')}`
+  }, [hydrateCourses, selectedCourses, wizard.profileTags])
 
   const sendRag = useCallback(async (question: string, contextType = 'course_qa') => {
     if (!question.trim() || isStreaming || !token) return
@@ -262,7 +565,7 @@ export function ChatWindow() {
         if (done) break
         appendToLast(value)
       }
-      appendToLast('\n\n_Not: Matematik/kodlama için özel fine-tuned model değilim; kritik kısımları doğrulamanı öneririm._')
+      appendToLast('\n\n_Not: Matematik/kodlama icin ozel fine-tuned model degilim; kritik kisimlari dogrulamani oneririm._')
     } catch (err) {
       appendToLast(`\n\n[Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}]`)
     } finally {
@@ -272,128 +575,171 @@ export function ChatWindow() {
 
   const startGraduationWizard = useCallback(() => {
     if (isStreaming) return
-    addMessage({ role: 'assistant', content: 'Mezuniyet analizi için önce bölümünü seç.', isWizard: true })
-    setWizard({ type: 'graduation', step: 'major-select', major: '', track: null, difficulty: null })
+    addMessage({ role: 'assistant', content: 'Mezuniyet analizi icin once bolumunu sec.', isWizard: true })
+    setWizard({ ...INITIAL_WIZARD, type: 'graduation', step: 'major-select' })
   }, [isStreaming, addMessage])
 
   const startPlanWizard = useCallback(() => {
     if (isStreaming) return
-    if (isComplete && selectedCourses.length > 0) {
-      addMessage({ role: 'assistant', content: `Kayıtlı ${selectedCourses.length} dersin var. Şimdi alan seçelim.`, isWizard: true })
-      setWizard({ type: 'plan', step: 'track-select', major: authMajor, track: null, difficulty: null })
-      return
-    }
-    addMessage({ role: 'assistant', content: 'Dönem planı için önce bölüm seç ve aldığın dersleri işaretle.', isWizard: true })
-    setWizard({ type: 'plan', step: 'major-select', major: '', track: null, difficulty: null })
-  }, [isStreaming, isComplete, selectedCourses, authMajor, addMessage])
+    addMessage({ role: 'assistant', content: 'Bu donem plani icin bolumunu secelim.', isWizard: true })
+    setWizard({ ...INITIAL_WIZARD, type: 'plan', step: 'major-select' })
+  }, [isStreaming, addMessage])
 
   const startPathWizard = useCallback(() => {
     if (isStreaming) return
-    addMessage({ role: 'assistant', content: 'Hangi alanda ilerlemek istediğini seç.', isWizard: true })
-    setWizard({ type: 'path', step: 'track-select', major: authMajor, track: null, difficulty: null })
-  }, [isStreaming, authMajor, addMessage])
+    addMessage({ role: 'assistant', content: 'Sana uygun alani bulmak icin once bolumunu sec.', isWizard: true })
+    setWizard({ ...INITIAL_WIZARD, type: 'path', step: 'major-select' })
+  }, [isStreaming, addMessage])
 
   const handleWizardSelect = useCallback(async (payload: {
     major?: string
-    track?: Exclude<Track, null>
-    difficulty?: Exclude<Difficulty, null>
     coursesDone?: boolean
+    profileTag?: string
+    profileDone?: boolean
+    trackToggle?: string
+    tracksDone?: boolean
+    difficulty?: Exclude<Difficulty, null>
   }) => {
     if (isStreaming) return
-    const { type, step, major, track } = wizard
+    const { type, step, major } = wizard
 
     if (step === 'major-select' && payload.major) {
-      addMessage({ role: 'user', content: `${payload.major} - ${MAJOR_LABELS[payload.major] ?? payload.major}` })
-      setWizard((w) => ({ ...w, major: payload.major! }))
+      const selectedMajor = payload.major
+      addMessage({ role: 'user', content: `${selectedMajor} - ${MAJOR_LABELS[selectedMajor] ?? selectedMajor}` })
 
-      if (isComplete && selectedCourses.length > 0) {
-        if (type === 'graduation') {
-          if (token && studentId) {
-            try {
-              const status = await api.getGraduationStatus(token, studentId, {
-                major: payload.major,
-                semester: '1',
-                completed: selectedCourses.join(','),
-              })
-              await streamWizardReply(buildGraduationFromStatus(status, payload.major, courseMap))
-            } catch {
-              await streamWizardReply(buildGraduationReply(payload.major, selectedCourses, courseMap))
-            }
-          } else {
-            await streamWizardReply(buildGraduationReply(payload.major, selectedCourses, courseMap))
-          }
+      if (type === 'graduation') {
+        setWizard((w) => ({ ...w, major: selectedMajor, step: 'course-select' }))
+        if (isComplete && selectedCourses.length > 0) {
+          await runGraduationAnalysis(selectedMajor)
           setWizard(INITIAL_WIZARD)
-          return
+        } else {
+          addMessage({ role: 'assistant', content: 'Ders panelinden aldigin dersleri sec ve Kaydet de.', isWizard: true })
+          setShowPanel(true)
         }
-        addMessage({ role: 'assistant', content: 'Kayıtlı derslerini buldum. Şimdi alan seçelim.', isWizard: true })
-        setWizard((w) => ({ ...w, major: payload.major!, step: 'track-select' }))
         return
       }
 
-      addMessage({ role: 'assistant', content: 'Ders panelinden aldığın dersleri seç ve Kaydet bas.', isWizard: true })
-      setWizard((w) => ({ ...w, major: payload.major!, step: 'course-select' }))
-      setShowPanel(true)
+      if (type === 'plan') {
+        if (isComplete && selectedCourses.length > 0) {
+          addMessage({ role: 'assistant', content: 'En fazla 2 alan secebilirsin. Kararsizim da seceneklerde var.', isWizard: true })
+          setWizard((w) => ({ ...w, major: selectedMajor, step: 'track-select' }))
+        } else {
+          addMessage({ role: 'assistant', content: 'Once aldigin dersleri secelim, sonra alan seceriz.', isWizard: true })
+          setWizard((w) => ({ ...w, major: selectedMajor, step: 'course-select' }))
+          setShowPanel(true)
+        }
+        return
+      }
+
+      if (type === 'path') {
+        addMessage({ role: 'assistant', content: 'Seni tanimak icin en az 1, en fazla 3 ozellik sec. Sonra alan onerecegim.', isWizard: true })
+        setWizard((w) => ({ ...w, major: selectedMajor, step: 'profile-select', profileTags: [], selectedTracks: [] }))
+      }
       return
     }
 
     if (step === 'course-select' && payload.coursesDone) {
       markComplete()
       setShowPanel(false)
-      addMessage({ role: 'user', content: `${selectedCourses.length} ders seçildi` })
+      addMessage({ role: 'user', content: `${selectedCourses.length} ders secildi` })
 
       if (type === 'graduation') {
-        const finalMajor = major || authMajor
-        if (token && studentId) {
-          try {
-            const status = await api.getGraduationStatus(token, studentId, {
-              major: finalMajor,
-              semester: '1',
-              completed: selectedCourses.join(','),
-            })
-            await streamWizardReply(buildGraduationFromStatus(status, finalMajor, courseMap))
-          } catch {
-            await streamWizardReply(buildGraduationReply(finalMajor, selectedCourses, courseMap))
-          }
-        } else {
-          await streamWizardReply(buildGraduationReply(finalMajor, selectedCourses, courseMap))
-        }
+        await runGraduationAnalysis(major || authMajor)
         setWizard(INITIAL_WIZARD)
         return
       }
 
-      addMessage({ role: 'assistant', content: 'Şimdi alan seçelim.', isWizard: true })
-      setWizard((w) => ({ ...w, step: 'track-select' }))
+      addMessage({ role: 'assistant', content: type === 'path' ? 'Simdi seni tanimak icin birkac secim yap.' : 'Simdi alan secelim. En fazla 2 alan secebilirsin.', isWizard: true })
+      setWizard((w) => ({ ...w, step: type === 'path' ? 'profile-select' : 'track-select' }))
       return
     }
 
-    if (step === 'track-select' && payload.track) {
-      const trackId: Exclude<Track, null> = payload.track
-      addMessage({ role: 'user', content: TRACKS[trackId].label })
-      setWizard((w) => ({ ...w, track: trackId }))
+    if (step === 'profile-select' && payload.profileTag) {
+      setWizard((w) => {
+        const exists = w.profileTags.includes(payload.profileTag as string)
+        if (exists) {
+          return { ...w, profileTags: w.profileTags.filter((t) => t !== payload.profileTag) }
+        }
+        if (w.profileTags.length >= 3) return w
+        return { ...w, profileTags: [...w.profileTags, payload.profileTag as string] }
+      })
+      return
+    }
+
+    if (step === 'profile-select' && payload.profileDone) {
+      addMessage({ role: 'user', content: wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Kararsizim' })
+      addMessage({ role: 'assistant', content: 'Secimlerine gore alanlar. En fazla 2 alan secebilirsin.', isWizard: true })
+      setWizard((w) => ({ ...w, step: 'track-select', selectedTracks: [] }))
+      return
+    }
+
+    if (step === 'track-select' && payload.trackToggle) {
+      const trackId = payload.trackToggle
+      setWizard((w) => {
+        const exists = w.selectedTracks.includes(trackId)
+        if (exists) {
+          return { ...w, selectedTracks: w.selectedTracks.filter((t) => t !== trackId) }
+        }
+        if (trackId === 'undecided') {
+          return { ...w, selectedTracks: ['undecided'] }
+        }
+        const withoutUndecided = w.selectedTracks.filter((t) => t !== 'undecided')
+        if (withoutUndecided.length >= 2) return w
+        return { ...w, selectedTracks: [...withoutUndecided, trackId] }
+      })
+      return
+    }
+
+    if (step === 'track-select' && payload.tracksDone) {
+      if (wizard.selectedTracks.length === 0) return
+
+      const ranked = rankTracksByProfile(major || authMajor, wizard.profileTags)
+      const selectedLabels = ranked.filter((t) => wizard.selectedTracks.includes(t.id)).map((t) => t.label)
+      addMessage({ role: 'user', content: selectedLabels.join(' + ') })
 
       if (type === 'path') {
-        await streamWizardReply(buildPathReply(trackId, selectedCourses, courseMap))
+        const text = await formatPathReply(major || authMajor, wizard.selectedTracks)
+        await streamWizardReply(text)
         setWizard(INITIAL_WIZARD)
         return
       }
 
-      addMessage({ role: 'assistant', content: 'Zorluk seviyesini seç.', isWizard: true })
+      addMessage({ role: 'assistant', content: 'Zorluk seviyesini sec.', isWizard: true })
       setWizard((w) => ({ ...w, step: 'difficulty-select' }))
       return
     }
 
     if (step === 'difficulty-select' && payload.difficulty) {
-      const difficultyId: Exclude<Difficulty, null> = payload.difficulty
-      addMessage({ role: 'user', content: difficultyId })
-      setWizard((w) => ({ ...w, difficulty: difficultyId, step: 'sending' }))
-      await streamWizardReply(buildPlanReply(major || authMajor, selectedCourses, track, difficultyId, courseMap))
+      addMessage({ role: 'user', content: payload.difficulty })
+      setWizard((w) => ({ ...w, difficulty: payload.difficulty as Exclude<Difficulty, null>, step: 'sending' }))
+      const text = await formatPlanReply(major || authMajor, wizard.selectedTracks, payload.difficulty)
+      await streamWizardReply(text)
       setWizard(INITIAL_WIZARD)
     }
-  }, [isStreaming, wizard, addMessage, isComplete, selectedCourses, streamWizardReply, markComplete, authMajor, courseMap, token, studentId])
+  }, [
+    addMessage,
+    authMajor,
+    formatPathReply,
+    formatPlanReply,
+    isComplete,
+    isStreaming,
+    markComplete,
+    runGraduationAnalysis,
+    selectedCourses.length,
+    streamWizardReply,
+    wizard,
+  ])
 
   const dispatchInput = useCallback((text: string) => {
     const cleaned = text.trim()
     if (!cleaned) return
+
+    const lowered = cleaned.toLowerCase()
+    if (wizard.type === 'plan' && wizard.step === null && (lowered === 'daha kolay' || lowered === 'daha zor')) {
+      const difficulty: Exclude<Difficulty, null> = lowered === 'daha kolay' ? 'easy' : 'hard'
+      handleWizardSelect({ difficulty })
+      return
+    }
 
     const intent = detectIntent(cleaned)
     if (intent === 'graduation') return startGraduationWizard()
@@ -402,13 +748,10 @@ export function ChatWindow() {
 
     setWizard(INITIAL_WIZARD)
     if (/(sinav|sınav|gecmis sinav|geçmiş sınav)/i.test(cleaned)) {
-      return sendRag(
-        `${cleaned}\n\nEğer veri yoksa bunu açıkça söyle ve resmi kaynak/çıkmış soru PDF'i yoksa tahmin yürütme.`,
-        'course_qa',
-      )
+      return sendRag(`${cleaned}\n\nEger veri yoksa net soyle. PDF veya resmi kaynak yoksa tahmin yurutme.`, 'course_qa')
     }
     sendRag(cleaned)
-  }, [sendRag, startGraduationWizard, startPlanWizard, startPathWizard])
+  }, [handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -427,11 +770,13 @@ export function ChatWindow() {
     }
   }
 
+  const trackOptions = useMemo(() => rankTracksByProfile(wizard.major || authMajor, wizard.profileTags), [authMajor, wizard.major, wizard.profileTags])
+
   return (
     <div className="flex h-full gap-4">
       <div className="hidden lg:flex w-72 glass rounded-[24px] p-3 flex-col gap-2 shrink-0">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-white/50 uppercase tracking-widest">Sohbet Geçmişi</p>
+          <p className="text-xs text-white/50 uppercase tracking-widest">Sohbet Gecmisi</p>
           <button onClick={newSession} className="text-xs px-2 py-1 rounded-lg bg-su-500/30 text-su-300">+ Yeni</button>
         </div>
         <div className="flex-1 overflow-y-auto flex flex-col gap-2">
@@ -451,7 +796,7 @@ export function ChatWindow() {
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           {messages.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-center text-white/60 text-sm">
-              3 hazır sorudan birini seç veya direkt açık uçlu soru yaz.
+              3 hazir sorudan birini sec veya direkt acik uclu soru yaz.
             </div>
           )}
 
@@ -462,7 +807,7 @@ export function ChatWindow() {
           <AnimatePresence mode="wait">
             {wizard.step === 'major-select' && (
               <WizardCard key="major">
-                <p className="text-xs text-white/50 mb-3">Bölümünü seç:</p>
+                <p className="text-xs text-white/50 mb-3">Ne okuyorsun?</p>
                 <div className="flex flex-wrap gap-2">
                   {MAJORS.map((m) => (
                     <button key={m} onClick={() => handleWizardSelect({ major: m })} className="glass glass-hover rounded-xl px-3 py-1.5 text-xs text-white/80 hover:text-white">
@@ -476,32 +821,79 @@ export function ChatWindow() {
 
             {wizard.step === 'course-select' && !showPanel && (
               <WizardCard key="coursePrompt">
-                <p className="text-xs text-white/50 mb-2">Ders panelini açıp aldığın dersleri seç.</p>
+                <p className="text-xs text-white/50 mb-2">Ders panelini acip aldigin dersleri sec.</p>
                 <button onClick={() => setShowPanel(true)} className="text-xs px-3 py-1.5 rounded-xl bg-su-500/20 border border-su-300/30 text-su-300 hover:bg-su-500/30">
-                  Paneli aç
+                  Paneli ac
                 </button>
               </WizardCard>
             )}
 
             {wizard.step === 'course-select' && showPanel && (
               <WizardCard key="courseDone">
-                <p className="text-xs text-white/50 mb-2">{selectedCourses.length} ders seçildi. Kaydet ile devam et.</p>
+                <p className="text-xs text-white/50 mb-2">{selectedCourses.length} ders secildi. Kaydet ile devam et.</p>
                 <button onClick={() => handleWizardSelect({ coursesDone: true })} disabled={selectedCourses.length === 0} className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30">
                   Devam et
                 </button>
               </WizardCard>
             )}
 
+            {wizard.step === 'profile-select' && (
+              <WizardCard key="profile">
+                <p className="text-xs text-white/50 mb-3">Sana uygun alanlari bulmak icin secim yap (1-3):</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {PROFILE_OPTIONS.map((p) => {
+                    const picked = wizard.profileTags.includes(p.id)
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => handleWizardSelect({ profileTag: p.id })}
+                        className={cn(
+                          'rounded-xl px-3 py-2 text-xs text-left border transition-all',
+                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white',
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={() => handleWizardSelect({ profileDone: true })}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300"
+                >
+                  Alanlari goster
+                </button>
+              </WizardCard>
+            )}
+
             {wizard.step === 'track-select' && (
               <WizardCard key="track">
-                <p className="text-xs text-white/50 mb-3">Alanını seç:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.entries(TRACKS) as Array<[Exclude<Track, null>, { label: string }]>).map(([id, cfg]) => (
-                    <button key={id} onClick={() => handleWizardSelect({ track: id })} className="glass glass-hover rounded-xl px-3 py-2 text-xs text-white/85 text-left hover:text-white">
-                      {cfg.label}
-                    </button>
-                  ))}
+                <p className="text-xs text-white/50 mb-2">En az 1, en fazla 2 alan sec. (Kararsizim secenegi var)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                  {trackOptions.slice(0, 8).map((track) => {
+                    const picked = wizard.selectedTracks.includes(track.id)
+                    return (
+                      <button
+                        key={track.id}
+                        onClick={() => handleWizardSelect({ trackToggle: track.id })}
+                        className={cn(
+                          'rounded-xl px-3 py-2 text-left border transition-all',
+                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white',
+                        )}
+                      >
+                        <p className="text-xs font-semibold">{track.label}</p>
+                        <p className="text-[11px] text-white/55 mt-1">{track.description}</p>
+                      </button>
+                    )
+                  })}
                 </div>
+                <button
+                  onClick={() => handleWizardSelect({ tracksDone: true })}
+                  disabled={wizard.selectedTracks.length === 0}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30"
+                >
+                  Devam et
+                </button>
               </WizardCard>
             )}
 
@@ -523,9 +915,9 @@ export function ChatWindow() {
         <div className="border-t border-white/10 p-3 flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             <QuickChip label="Mezuniyet Durumu" onClick={startGraduationWizard} disabled={isStreaming} />
-            <QuickChip label="Bu dönem ne almalıyım?" onClick={startPlanWizard} disabled={isStreaming} />
+            <QuickChip label="Bu donem ne almaliyim?" onClick={startPlanWizard} disabled={isStreaming} />
             <QuickChip label="Hangi alanda ilerlemeliyim?" onClick={startPathWizard} disabled={isStreaming} />
-            <button onClick={() => setShowPanel(true)} className="text-xs text-white/45 hover:text-white/80 px-2">Derslerimi güncelle</button>
+            <button onClick={() => setShowPanel(true)} className="text-xs text-white/45 hover:text-white/80 px-2">Derslerimi guncelle</button>
             <button onClick={clearMessages} className="text-xs text-white/35 hover:text-white/70 px-2">Sohbeti temizle</button>
           </div>
 
@@ -536,7 +928,7 @@ export function ChatWindow() {
               onKeyDown={handleKey}
               disabled={isStreaming}
               rows={1}
-              placeholder="Bir şey sor... (Enter gönderir)"
+              placeholder="Bir sey sor... (Enter gonderir)"
               className={cn('flex-1 bg-transparent text-white placeholder-white/30 text-sm resize-none outline-none', 'max-h-28 overflow-y-auto leading-relaxed')}
               style={{ height: 'auto' }}
               onInput={(e) => {
@@ -599,7 +991,7 @@ function WizardCard({ children }: { children: React.ReactNode }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      className="self-start max-w-2xl"
+      className="self-start max-w-3xl"
     >
       <div className="glass rounded-2xl px-4 py-3 border border-su-300/20">
         {children}
