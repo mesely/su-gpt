@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package rag;
+
+option java_package = "com.suadvisor.rag";
+option java_multiple_files = true;
+
+// ─────────────────────────────────────────────
+// Messages
+// ─────────────────────────────────────────────
+
+message RagRequest {
+  string question          = 1;
+  string student_id        = 2;
+  string major             = 3;
+  repeated string completed_courses = 4;
+  int32  current_semester  = 5;
+  string context_type      = 6; // "course_qa" | "graduation_check" | "instructor_review" | "path_advisor"
+  map<string, string> extra_context = 7; // arbitrary key-value for prompt hydration
+}
+
+message RagResponse {
+  string answer            = 1;
+  string context_type      = 2;
+  repeated string source_chunks = 3; // chunk IDs used
+  bool   is_streaming      = 4;
+  string chunk             = 5; // populated during streaming
+  bool   done              = 6; // true on last stream message
+  string model             = 7; // e.g. "mistral-small-latest"
+  int32  prompt_tokens     = 8;
+  int32  completion_tokens = 9;
+}
+
+message IngestRequest {
+  string document_type = 1; // "whatsapp" | "exam_pdf" | "course_desc"
+  bytes  content       = 2; // raw bytes
+  string batch_id      = 3; // UUID
+  string course_code   = 4; // optional
+  string instructor    = 5; // optional
+  map<string, string> metadata = 6;
+}
+
+message IngestResponse {
+  string batch_id      = 1;
+  int32  chunks_stored = 2;
+  bool   success       = 3;
+  string error         = 4;
+}
+
+message EmbedRequest {
+  string query         = 1;
+  int32  top_k         = 2; // default 8
+  string collection    = 3; // "su_reviews" | "su_exams"
+  map<string, string> filters = 4; // e.g. {"instructor": "Ercan Solak"}
+}
+
+message Chunk {
+  string id            = 1;
+  string text          = 2;
+  double score         = 3;
+  map<string, string> metadata = 4;
+}
+
+message ChunkList {
+  repeated Chunk chunks = 1;
+}
+
+// ─────────────────────────────────────────────
+// Service
+// ─────────────────────────────────────────────
+
+service RagService {
+  // Server-side streaming: client receives partial responses
+  rpc Ask               (RagRequest)    returns (stream RagResponse);
+  rpc IngestDocument    (IngestRequest) returns (IngestResponse);
+  rpc GetSimilarChunks  (EmbedRequest)  returns (ChunkList);
+}

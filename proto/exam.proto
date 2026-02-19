@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package exam;
+
+option java_package = "com.suadvisor.exam";
+option java_multiple_files = true;
+
+// ─────────────────────────────────────────────
+// Messages
+// ─────────────────────────────────────────────
+
+message ExamFilter {
+  string course_code = 1; // optional
+  int32  year        = 2; // optional, 0 = all
+  string semester    = 3; // "fall" | "spring" | "summer" | "" = all
+  string type        = 4; // "midterm" | "final" | "quiz" | "" = all
+  int32  page        = 5;
+  int32  page_size   = 6;
+}
+
+message ExamRequest {
+  string exam_id = 1;
+}
+
+message UploadExamRequest {
+  string course_code  = 1;
+  int32  year         = 2;
+  string semester     = 3; // "fall" | "spring" | "summer"
+  string type         = 4; // "midterm" | "final" | "quiz"
+  string file_name    = 5;
+  bytes  content      = 6; // PDF bytes
+  string uploaded_by  = 7; // admin user ID
+}
+
+message DeleteExamRequest {
+  string exam_id = 1;
+}
+
+message DeleteExamResponse {
+  bool   success = 1;
+  string error   = 2;
+}
+
+// ─── Response messages ─────────────────────────
+
+message ExamResponse {
+  string id           = 1;
+  string course_code  = 2;
+  int32  year         = 3;
+  string semester     = 4;
+  string type         = 5;
+  string file_name    = 6;
+  string minio_key    = 7;
+  string uploaded_by  = 8;
+  string created_at   = 9; // ISO 8601
+}
+
+message ExamList {
+  repeated ExamResponse exams = 1;
+  int32                 total = 2;
+}
+
+message PresignedResponse {
+  string exam_id       = 1;
+  string presigned_url = 2;
+  int32  ttl_seconds   = 3; // typically 3600
+  string expires_at    = 4; // ISO 8601
+}
+
+// ─────────────────────────────────────────────
+// Service
+// ─────────────────────────────────────────────
+
+service ExamService {
+  rpc GetExams        (ExamFilter)         returns (ExamList);
+  rpc GetExam         (ExamRequest)        returns (ExamResponse);
+  rpc GetPresignedUrl (ExamRequest)        returns (PresignedResponse);
+  rpc UploadExam      (UploadExamRequest)  returns (ExamResponse);
+  rpc DeleteExam      (DeleteExamRequest)  returns (DeleteExamResponse);
+}

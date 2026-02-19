@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package course;
+
+option java_package = "com.suadvisor.course";
+option java_multiple_files = true;
+
+// ─────────────────────────────────────────────
+// Messages
+// ─────────────────────────────────────────────
+
+message CourseRequest {
+  string code = 1; // e.g. "IF100"
+}
+
+message SearchRequest {
+  string query     = 1;
+  string major     = 2; // optional filter
+  string faculty   = 3; // optional filter
+  string el_type   = 4; // "university" | "faculty" | "area"
+  int32  page      = 5;
+  int32  page_size = 6;
+}
+
+message StudentRequest {
+  string student_id        = 1;
+  string major             = 2;
+  repeated string completed_courses = 3; // list of fullCodes
+  int32  current_semester  = 4;
+}
+
+message SemesterPlanRequest {
+  string student_id        = 1;
+  string major             = 2;
+  repeated string completed_courses = 3;
+  int32  target_semester   = 4;
+  int32  max_ects          = 5; // default 30
+}
+
+// ─── Response messages ─────────────────────────
+
+message CategoryInfo {
+  double engineering     = 1;
+  double basic_science   = 2;
+  bool   is_core         = 3;
+  bool   is_area         = 4;
+  bool   is_basic_science = 5;
+}
+
+message CourseResponse {
+  string        id           = 1;
+  string        major        = 2;
+  string        code         = 3;
+  string        full_code    = 4;
+  string        name         = 5;
+  int32         ects         = 6;
+  double        su_credit    = 7;
+  string        faculty      = 8;
+  string        el_type      = 9;
+  CategoryInfo  categories   = 10;
+  repeated string prerequisites = 11;
+  repeated string instructors   = 12;
+  string        description  = 13;
+}
+
+message CourseListResponse {
+  repeated CourseResponse courses = 1;
+  int32                   total   = 2;
+  int32                   page    = 3;
+  int32                   page_size = 4;
+}
+
+// Graduation status ──────────────────────────────
+
+message CategoryStatus {
+  string category     = 1;  // "core" | "area" | "basicScience" | "university" | "free"
+  int32  completed_ects = 2;
+  int32  required_ects  = 3;
+  bool   satisfied      = 4;
+  repeated string missing_courses = 5;
+}
+
+message PathProgress {
+  string path_id          = 1; // "NLP_PATH" etc.
+  string path_name        = 2;
+  double completion_pct   = 3;
+  repeated string completed = 4;
+  repeated string missing   = 5;
+}
+
+message GraduationStatus {
+  string                  student_id        = 1;
+  string                  major             = 2;
+  int32                   total_completed_ects = 3;
+  int32                   total_required_ects  = 4;
+  bool                    is_eligible       = 5;
+  repeated CategoryStatus category_statuses = 6;
+  repeated PathProgress   path_progresses   = 7;
+  int32                   estimated_semesters_left = 8;
+}
+
+// Path recommendation ────────────────────────────
+
+message PathRecommendation {
+  string path_id      = 1;
+  string path_name    = 2;
+  double match_score  = 3;
+  string rationale    = 4;
+  repeated string recommended_courses = 5;
+}
+
+// Semester plan ──────────────────────────────────
+
+message PlannedCourse {
+  string full_code = 1;
+  string name      = 2;
+  int32  ects      = 3;
+  string category  = 4;
+  bool   is_prerequisite_satisfied = 5;
+}
+
+message SemesterPlan {
+  string student_id            = 1;
+  int32  semester              = 2;
+  repeated PlannedCourse courses = 3;
+  int32  total_ects            = 4;
+  string warning               = 5; // optional
+}
+
+// ─────────────────────────────────────────────
+// Service
+// ─────────────────────────────────────────────
+
+service CourseService {
+  rpc GetCourse            (CourseRequest)       returns (CourseResponse);
+  rpc SearchCourses        (SearchRequest)        returns (CourseListResponse);
+  rpc GetGraduationStatus  (StudentRequest)       returns (GraduationStatus);
+  rpc GetPathRecommendation(StudentRequest)       returns (PathRecommendation);
+  rpc GetSemesterPlan      (SemesterPlanRequest)  returns (SemesterPlan);
+}
