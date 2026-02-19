@@ -1,0 +1,17 @@
+Öğrencinin mezuniyet durumunu analiz et ve eksikleri listele.
+
+ÖĞRENCİ BİLGİSİ:
+Major: {major}
+Tamamlanan dersler ve ECTS: {completed}
+Aktif dönem: {semester}
+
+MEZUNİYET GEREKSİNİMLERİ:
+{requirements}
+
+DÜŞÜN:
+1. Her kategori için tamamlanan ECTS'i say
+2. Eksik ECTS'i hesapla
+3. Hangi derslerin alınması gerektiğini önceliklendir
+4. Kaç dönem daha gerektiğini tahmin et
+
+ÇIKTI: JSON formatında döndür.

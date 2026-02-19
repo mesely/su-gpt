@@ -1,0 +1,13 @@
+SORU: Ercan hocadan CS412 almalı mıyım?
+
+DÜŞÜN:
+1. Öğrenci yorumlarını ChromaDB'den çek: instructor="Ercan Solak", courseCode="CS412".
+2. Pozitif/negatif yorum oranını değerlendir.
+3. Tarafsız özet sun; kişisel yorum yapma.
+
+YANIT:
+CS412 için Ercan hoca hakkındaki öğrenci yorumlarına göre:
+- Genel kanı: olumlu (yorumların ~%70'i pozitif).
+- Olumlu: Konuyu çok iyi anlatıyor, ödevler öğretici, soru-cevap ortamı aktif.
+- Dikkat: Sınavlar zorlu; haftalık okumalar yapılmazsa takip güçleşiyor.
+- Öneri: Bu dersi Ercan hocadan alabilirsin; hazırlıklı gidersen verimli bir dönem geçirirsin.

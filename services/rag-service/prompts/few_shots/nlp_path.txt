@@ -1,0 +1,15 @@
+SORU: NLP path için hangi dersleri almalıyım?
+
+DÜŞÜN:
+1. NLP_PATH zorunlu dersler: CS412, CS464, CS514.
+2. Seçmeli havuz: CS461, CS562 (2 tanesi alınmalı).
+3. Önkoşullar kontrol edilmeli: CS412 için CS301 gerekebilir.
+4. Öğrencinin tamamladıkları ile karşılaştır.
+
+YANIT:
+NLP path'i için şu sırayı öneriyorum:
+1. CS412 (Makine Öğrenmesi) — önce bu; hem NLP hem CV path'lerinin temelidir.
+2. CS464 (Doğal Dil İşleme) — CS412 sonrası alınabilir.
+3. CS514 (İleri NLP) — yüksek lisans düzeyi, 4. yılda idealdir.
+Seçmelilerden CS461 ve CS562'yi planına ekle.
+Tamamladığın derslerine göre önkoşul durumunu graduation sayfasından kontrol edebilirsin.

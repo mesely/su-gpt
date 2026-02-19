@@ -1,0 +1,13 @@
+SORU: IF100'ü geçemiyorum ne yapayım?
+
+DÜŞÜN:
+1. IF100 temel programlama dersidir, CS ve IF majörleri için zorunlu önkoşuldur.
+2. Öğrenci IF100'ü geçemiyorsa CS201, CS204 gibi dersleri alamaz.
+3. Olası sorunlar: algoritma mantığı, Python sözdizimi, ödev/sınav dengesi.
+
+YANIT:
+IF100 zor gelebilir; ancak birkaç strateji işe yarıyor:
+- Önce temel Python sözdizimini pekiştir (koşullar, döngüler, fonksiyonlar).
+- Ders saatlerinde hocayla ya da asistanlarla birebir görüş; soru sormaktan çekinme.
+- Geçmiş sınavları çöz — arşivi /exams sayfasından indirebilirsin.
+- Dönem tekrarı gerekirse IF100'ü erken al; önkoşul zinciri bunun üzerine kurulu.
