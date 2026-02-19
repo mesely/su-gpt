@@ -10,7 +10,7 @@ export class CoursesRepository {
   ) {}
 
   async findByFullCode(fullCode: string): Promise<CourseDocument | null> {
-    return this.model.findOne({ fullCode: fullCode.toUpperCase() }).lean().exec();
+    return this.model.findOne({ fullCode: fullCode.toUpperCase() }).lean().exec() as unknown as CourseDocument | null;
   }
 
   async search(
@@ -32,7 +32,7 @@ export class CoursesRepository {
 
     const skip = (page - 1) * pageSize;
     const [courses, total] = await Promise.all([
-      this.model.find(filter).skip(skip).limit(pageSize).lean().exec(),
+      this.model.find(filter).skip(skip).limit(pageSize).lean().exec() as unknown as CourseDocument[],
       this.model.countDocuments(filter).exec(),
     ]);
 
@@ -41,11 +41,11 @@ export class CoursesRepository {
 
   async findByCodes(fullCodes: string[]): Promise<CourseDocument[]> {
     const upper = fullCodes.map((c) => c.toUpperCase());
-    return this.model.find({ fullCode: { $in: upper } }).lean().exec();
+    return this.model.find({ fullCode: { $in: upper } }).lean().exec() as unknown as CourseDocument[];
   }
 
   async findByMajor(major: string): Promise<CourseDocument[]> {
-    return this.model.find({ major: major.toUpperCase() }).lean().exec();
+    return this.model.find({ major: major.toUpperCase() }).lean().exec() as unknown as CourseDocument[];
   }
 
   async upsert(course: Partial<Course>): Promise<CourseDocument> {

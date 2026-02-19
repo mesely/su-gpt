@@ -30,6 +30,17 @@ export interface AskParams {
   extraContext?: Record<string, string>;
 }
 
+export interface AskChunk {
+  chunk: string;
+  done: boolean;
+  answer: string;
+  sourceChunks: string[];
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  contextType: string;
+}
+
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
@@ -48,26 +59,8 @@ export class RagService {
 
   // ─── Ana RAG pipeline (streaming) ─────────────────────────────────────────
 
-  ask(params: AskParams): Observable<{
-    chunk: string;
-    done: boolean;
-    answer: string;
-    sourceChunks: string[];
-    model: string;
-    promptTokens: number;
-    completionTokens: number;
-    contextType: string;
-  }> {
-    const subject = new Subject<{
-      chunk: string;
-      done: boolean;
-      answer: string;
-      sourceChunks: string[];
-      model: string;
-      promptTokens: number;
-      completionTokens: number;
-      contextType: string;
-    }>();
+  ask(params: AskParams): Observable<AskChunk> {
+    const subject = new Subject<AskChunk>();
 
     this.runPipeline(params, subject).catch((err: Error) => {
       this.logger.error('RAG pipeline hatası:', err.message);
@@ -89,7 +82,7 @@ export class RagService {
 
   private async runPipeline(
     params: AskParams,
-    subject: Subject<unknown>,
+    subject: Subject<AskChunk>,
   ) {
     // 1. Query expansion
     const queries = this.cot.expandQuery(params.question);
@@ -126,16 +119,7 @@ export class RagService {
     await this.queue.add(async () => {
       await this.streamMistral(
         messages,
-        subject as Subject<{
-          chunk: string;
-          done: boolean;
-          answer: string;
-          sourceChunks: string[];
-          model: string;
-          promptTokens: number;
-          completionTokens: number;
-          contextType: string;
-        }>,
+        subject,
         sourceIds,
         contextType,
       );
@@ -144,16 +128,7 @@ export class RagService {
 
   private async streamMistral(
     messages: MistralMessage[],
-    subject: Subject<{
-      chunk: string;
-      done: boolean;
-      answer: string;
-      sourceChunks: string[];
-      model: string;
-      promptTokens: number;
-      completionTokens: number;
-      contextType: string;
-    }>,
+    subject: Subject<AskChunk>,
     sourceIds: string[],
     contextType: string,
   ) {
