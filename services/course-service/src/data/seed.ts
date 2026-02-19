@@ -17,15 +17,19 @@ const DATA_DIR = path.join(__dirname, '../../data');
 interface RawCourse {
   Major?: string;
   Code?: string;
-  Name?: string;
+  Course_Name?: string;  // actual field name in JSONL
+  Name?: string;         // fallback
   ECTS?: number | string;
-  SU_Credit?: number | string;
+  SU_credit?: number | string;  // actual field name in JSONL
+  SU_Credit?: number | string;  // fallback
   Faculty?: string;
   EL_Type?: string;
   Engineering?: number | string;
   Basic_Science?: number | string;
   Prerequisites?: string;
+  Prerequisite?: string;
   Instructors?: string;
+  Instructor?: string;
   Description?: string;
 }
 
@@ -77,9 +81,9 @@ function transformRow(row: RawCourse): CourseDoc {
     major,
     code,
     fullCode: `${major}${code}`,
-    name: (row.Name ?? '').trim(),
+    name: (row.Course_Name ?? row.Name ?? '').trim(),
     ects: parseInt(String(row.ECTS ?? '0'), 10) || 0,
-    suCredit: parseFloat(String(row.SU_Credit ?? '0')) || 0,
+    suCredit: parseFloat(String(row.SU_credit ?? row.SU_Credit ?? '0')) || 0,
     faculty: (row.Faculty ?? '').trim().toUpperCase(),
     elType,
     categories: {
@@ -89,8 +93,8 @@ function transformRow(row: RawCourse): CourseDoc {
       isArea: elType === 'area',
       isBasicScience: basicScience > 0,
     },
-    prerequisites: parsePrerequisites(row.Prerequisites),
-    instructors: parseInstructors(row.Instructors),
+    prerequisites: parsePrerequisites(row.Prerequisites ?? row.Prerequisite),
+    instructors: parseInstructors(row.Instructors ?? row.Instructor),
     description: (row.Description ?? '').trim(),
   };
 }
