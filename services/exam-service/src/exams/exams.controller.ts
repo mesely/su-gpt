@@ -1,6 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
 import { ExamsService } from './exams.service';
+import { ExamDoc } from '../schemas/exam.schema';
 
 @Controller()
 export class ExamsController {
@@ -94,7 +95,7 @@ export class ExamsController {
 
   // ─── Helper ───────────────────────────────────────────────────────────────
 
-  private toResponse(e: Record<string, unknown> & { _id?: unknown; createdAt?: unknown }) {
+  private toResponse(e: ExamDoc) {
     return {
       id:          String(e._id ?? ''),
       course_code: e.courseCode,

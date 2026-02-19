@@ -39,7 +39,7 @@ export class ExamsService {
         .skip((page - 1) * pageSize)
         .limit(pageSize)
         .lean()
-        .exec(),
+        .exec() as unknown as ExamDoc[],
       this.examModel.countDocuments(query).exec(),
     ]);
 
@@ -51,7 +51,7 @@ export class ExamsService {
   async getExam(examId: string): Promise<ExamDoc> {
     const exam = await this.examModel.findById(examId).lean().exec();
     if (!exam) throw new NotFoundException(`Sınav bulunamadı: ${examId}`);
-    return exam as ExamDoc;
+    return exam as unknown as ExamDoc;
   }
 
   // ─── Presigned URL ────────────────────────────────────────────────────────
