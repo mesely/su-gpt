@@ -383,9 +383,10 @@ export function ChatWindow() {
     }
 
     if (step === 'difficulty-select' && payload.difficulty) {
-      addMessage({ role: 'user', content: payload.difficulty })
-      setWizard((w) => ({ ...w, difficulty: payload.difficulty, step: 'sending' }))
-      await streamWizardReply(buildPlanReply(major || authMajor, selectedCourses, track, payload.difficulty, courseMap))
+      const difficultyId: Exclude<Difficulty, null> = payload.difficulty
+      addMessage({ role: 'user', content: difficultyId })
+      setWizard((w) => ({ ...w, difficulty: difficultyId, step: 'sending' }))
+      await streamWizardReply(buildPlanReply(major || authMajor, selectedCourses, track, difficultyId, courseMap))
       setWizard(INITIAL_WIZARD)
     }
   }, [isStreaming, wizard, addMessage, isComplete, selectedCourses, streamWizardReply, markComplete, authMajor, courseMap, token, studentId])
