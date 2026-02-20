@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { GrpcMethod, GrpcStreamMethod } from '@nestjs/microservices';
+import { GrpcMethod } from '@nestjs/microservices';
 import { Observable } from 'rxjs';
 import { RagService } from './rag.service';
 import { VectorService } from './vector.service';
@@ -16,7 +16,7 @@ export class RagController {
   ) {}
 
   // Server-side streaming RPC
-  @GrpcStreamMethod('RagService', 'Ask')
+  @GrpcMethod('RagService', 'Ask')
   ask(data: {
     question: string;
     student_id: string;

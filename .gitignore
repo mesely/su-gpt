@@ -4,3 +4,6 @@
 
 # local env
 .env
+
+services/course-service/data/
+.DS_Store
