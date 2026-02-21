@@ -15,6 +15,37 @@ interface CourseSelectorProps {
   onClose: () => void
 }
 
+function normalizeMajorPrefix(raw: string): string {
+  const token = String(raw ?? '').toUpperCase().trim()
+  const m = token.match(/[A-Z]{2,6}/)
+  const parsed = (m?.[0] ?? 'CS').toUpperCase()
+  if (parsed === 'MAT') return 'MATH'
+  return parsed
+}
+
+function normalizeCourse(raw: Record<string, unknown>): Course {
+  const categoriesRaw = (raw.categories ?? {}) as Record<string, unknown>
+  return {
+    _id: String(raw._id ?? raw.id ?? raw.fullCode ?? raw.full_code ?? ''),
+    fullCode: String(raw.fullCode ?? raw.full_code ?? ''),
+    code: String(raw.code ?? ''),
+    major: String(raw.major ?? ''),
+    name: String(raw.name ?? ''),
+    ects: Number(raw.ects ?? 0),
+    suCredit: Number(raw.suCredit ?? raw.su_credit ?? 0),
+    faculty: String(raw.faculty ?? ''),
+    elType: String(raw.elType ?? raw.el_type ?? ''),
+    categories: {
+      isCore: Boolean(categoriesRaw.isCore ?? categoriesRaw.is_core ?? false),
+      isArea: Boolean(categoriesRaw.isArea ?? categoriesRaw.is_area ?? false),
+      isBasicScience: Boolean(categoriesRaw.isBasicScience ?? categoriesRaw.is_basic_science ?? false),
+    },
+    prerequisites: Array.isArray(raw.prerequisites) ? (raw.prerequisites as string[]) : [],
+    instructors: Array.isArray(raw.instructors) ? (raw.instructors as string[]) : [],
+    description: String(raw.description ?? ''),
+  }
+}
+
 export function CourseSelector({
   initialMajor = 'CS',
   initialCategory = 'all',
@@ -23,9 +54,9 @@ export function CourseSelector({
 }: CourseSelectorProps) {
   const { token } = useAuthStore()
   const { selectedCourses, toggleCourse } = useCourseSelectionStore()
-  const initialPrefix = initialMajor === 'MAT' ? 'MATH' : initialMajor
+  const initialPrefix = normalizeMajorPrefix(initialMajor)
 
-  const [activePrefix, setActivePrefix] = useState(initialPrefix)
+  const [activePrefix, setActivePrefix] = useState(PREFIXES.includes(initialPrefix) ? initialPrefix : 'ALL')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'>(initialCategory)
   const [courses, setCourses]           = useState<Course[]>([])
   const [loading, setLoading]           = useState(false)
@@ -43,12 +74,16 @@ export function CourseSelector({
         params.q = searchQ.trim()
         params.pageSize = '300'
       } else {
-        params.q = activePrefix
+        params.major = activePrefix
         params.pageSize = '2500'
       }
 
       const res = await api.searchCourses(token, params)
-      setCourses((res.courses ?? []).sort((a, b) => a.fullCode.localeCompare(b.fullCode)))
+      const normalized = (res.courses ?? [])
+        .map((c) => normalizeCourse(c as unknown as Record<string, unknown>))
+        .filter((c) => c.fullCode)
+        .sort((a, b) => a.fullCode.localeCompare(b.fullCode))
+      setCourses(normalized)
     } catch {
       setCourses([])
     } finally {
