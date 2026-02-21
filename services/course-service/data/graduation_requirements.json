@@ -1,19 +1,19 @@
 {
   "CS": {
     "major": "CS",
-    "totalEcts": 240,
+    "totalCredit": 136,
     "categories": {
       "core": {
-        "minEcts": 90,
+        "minCredit": 48,
         "courses": ["CS201", "CS204", "CS301", "CS303", "CS306", "CS307", "CS401", "CS403", "CS404"]
       },
       "area": {
-        "minEcts": 45,
+        "minCredit": 24,
         "pools": ["NLP_PATH", "CV_PATH", "SYSTEMS_PATH"]
       },
-      "basicScience": { "minEcts": 30 },
-      "university":   { "minEcts": 18 },
-      "free":         { "minEcts": 20 }
+      "basicScience": { "minCredit": 20 },
+      "university":   { "minCredit": 12 },
+      "free":         { "minCredit": 12 }
     },
     "paths": {
       "NLP_PATH": {
@@ -35,16 +35,16 @@
   },
   "IF": {
     "major": "IF",
-    "totalEcts": 240,
+    "totalCredit": 136,
     "categories": {
       "core": {
-        "minEcts": 90,
-        "courses": ["IF100", "IF201", "IF301", "IF302"]
+        "minCredit": 5,
+        "courses": ["IF100"]
       },
-      "area":         { "minEcts": 45, "pools": [] },
-      "basicScience": { "minEcts": 30 },
-      "university":   { "minEcts": 18 },
-      "free":         { "minEcts": 20 }
+      "area":         { "minCredit": 24, "pools": [] },
+      "basicScience": { "minCredit": 20 },
+      "university":   { "minCredit": 12 },
+      "free":         { "minCredit": 12 }
     },
     "paths": {}
   }

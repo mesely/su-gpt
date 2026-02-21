@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 :root {
-  /* Ana renkler — Sabancı kurumsal mavi */
   --su-blue-900: #002147;
   --su-blue-700: #003d7a;
   --su-blue-500: #0057A8;
@@ -11,70 +10,82 @@
   --su-blue-100: #dbeeff;
   --su-blue-50:  #f0f7ff;
 
-  /* Glassmorphism token'ları */
-  --glass-bg:     rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-blur:   blur(24px);
-  --glass-shadow: 0 8px 32px rgba(0, 33, 71, 0.18);
-
-  /* Durum renkleri */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger:  #ef4444;
-  --color-neutral: #64748b;
+  --glass-bg:     rgba(255, 255, 255, 0.10);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-blur:   blur(28px) saturate(140%);
+  --glass-shadow: 0 8px 32px rgba(0, 33, 71, 0.22);
 }
 
-/* ─── Genel arka plan ───────────────────────────────────────────────────── */
+/* Background */
 body {
-  background: linear-gradient(135deg, #002147 0%, #003d7a 50%, #0057A8 100%);
+  background: linear-gradient(135deg, #001835 0%, #002f66 45%, #004488 100%);
   min-height: 100vh;
+  min-height: 100dvh;
   color: #fff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Kaydırma çubuğu ──────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); }
 
-/* ─── Utility class'lar ─────────────────────────────────────────────────── */
+/* ── Utility classes ─────────────────────────────────────────────────────── */
 @layer components {
+  /* Standard glass panel — iOS frosted look */
   .glass {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    background: rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 8px 32px rgba(0, 24, 53, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
+  /* Sidebar specific glass — slightly different tint */
+  .sidebar-glass {
+    background:
+      linear-gradient(160deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.05) 100%);
+    backdrop-filter: blur(32px) saturate(160%);
+    -webkit-backdrop-filter: blur(32px) saturate(160%);
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      4px 0 24px rgba(0, 24, 53, 0.18),
+      inset 1px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  /* Enhanced glass for cards */
   .glass-ultra {
     background:
-      radial-gradient(120% 120% at 10% 0%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.02) 100%),
-      linear-gradient(145deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.04));
-    border: 1px solid rgba(255, 255, 255, 0.32);
+      radial-gradient(120% 120% at 10% 0%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 42%, rgba(255,255,255,0.02) 100%),
+      linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+    border: 1px solid rgba(255, 255, 255, 0.22);
     box-shadow:
-      0 16px 48px rgba(0, 0, 0, 0.24),
-      inset 0 1px 0 rgba(255, 255, 255, 0.35),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(28px) saturate(160%);
-    -webkit-backdrop-filter: blur(28px) saturate(160%);
+      0 16px 48px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(32px) saturate(170%);
+    -webkit-backdrop-filter: blur(32px) saturate(170%);
   }
 
   .glass-hover {
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
   }
   .glass-hover:hover {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.14);
     box-shadow: 0 12px 40px rgba(0,33,71,0.25);
   }
 
   .text-su { color: var(--su-blue-300); }
   .bg-su   { background: var(--su-blue-700); }
 
-  .badge-success { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
-  .badge-warning { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
-  .badge-danger  { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-  .badge-neutral { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
-  .badge-su      { background: rgba(0,87,168,0.25); color: #4d9de0; border: 1px solid rgba(77,157,224,0.3); }
+  .badge-success { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); border-radius: 0.5rem; padding: 1px 8px; font-size: 0.7rem; font-weight: 500; }
+  .badge-warning { background: rgba(245,158,11,0.15);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3);  border-radius: 0.5rem; padding: 1px 8px; font-size: 0.7rem; font-weight: 500; }
+  .badge-danger  { background: rgba(239,68,68,0.15);   color: #ef4444; border: 1px solid rgba(239,68,68,0.3);   border-radius: 0.5rem; padding: 1px 8px; font-size: 0.7rem; font-weight: 500; }
+  .badge-neutral { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); border-radius: 0.5rem; padding: 1px 8px; font-size: 0.7rem; font-weight: 500; }
+  .badge-su      { background: rgba(0,87,168,0.25);    color: #4d9de0; border: 1px solid rgba(77,157,224,0.3);  border-radius: 0.5rem; padding: 1px 8px; font-size: 0.7rem; font-weight: 500; }
 }

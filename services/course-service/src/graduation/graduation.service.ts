@@ -4,7 +4,7 @@ import * as path from 'path';
 import { CoursesService } from '../courses/courses.service';
 
 interface CategoryReq {
-  minEcts: number;
+  minCredit: number;
   courses?: string[];
   pools?: string[];
 }
@@ -17,7 +17,7 @@ interface PathDef {
 
 interface MajorRequirements {
   major: string;
-  totalEcts: number;
+  totalCredit: number;
   categories: Record<string, CategoryReq>;
   paths: Record<string, PathDef>;
 }
@@ -45,8 +45,10 @@ export class GraduationService {
     }
 
     const completedCourses = await this.coursesService.findByCodes(completedCodes);
+
+    // Use suCredit for all calculations
     const totalCompletedEcts = completedCourses.reduce(
-      (sum, c) => sum + ((c as unknown as Record<string, number>).ects ?? 0),
+      (sum, c) => sum + ((c as unknown as Record<string, number>).suCredit ?? 0),
       0,
     );
 
@@ -59,7 +61,7 @@ export class GraduationService {
         return false;
       });
       const completedEcts = catCourses.reduce(
-        (s, c) => s + ((c as unknown as Record<string, number>).ects ?? 0),
+        (s, c) => s + ((c as unknown as Record<string, number>).suCredit ?? 0),
         0,
       );
       const missing =
@@ -68,8 +70,8 @@ export class GraduationService {
       return {
         category: cat,
         completedEcts,
-        requiredEcts: catReq.minEcts,
-        satisfied: completedEcts >= catReq.minEcts,
+        requiredEcts: catReq.minCredit,
+        satisfied: completedEcts >= catReq.minCredit,
         missingCourses: missing,
       };
     });
@@ -108,19 +110,19 @@ export class GraduationService {
       };
     });
 
-    const remainingEcts = req.totalEcts - totalCompletedEcts;
-    const avgEctsPerSemester = 30;
+    const remainingEcts = req.totalCredit - totalCompletedEcts;
+    const avgCreditsPerSemester = 18; // ~18 SU credits per semester
     const estimatedSemestersLeft = Math.max(
       0,
-      Math.ceil(remainingEcts / avgEctsPerSemester),
+      Math.ceil(remainingEcts / avgCreditsPerSemester),
     );
 
     return {
       studentId,
       major,
       totalCompletedEcts,
-      totalRequiredEcts: req.totalEcts,
-      isEligible: totalCompletedEcts >= req.totalEcts &&
+      totalRequiredEcts: req.totalCredit,
+      isEligible: totalCompletedEcts >= req.totalCredit &&
         categoryStatuses.every((s) => s.satisfied),
       categoryStatuses,
       pathProgresses,
@@ -133,7 +135,7 @@ export class GraduationService {
       studentId,
       major,
       totalCompletedEcts: 0,
-      totalRequiredEcts: 240,
+      totalRequiredEcts: 136,
       isEligible: false,
       categoryStatuses: [],
       pathProgresses: [],

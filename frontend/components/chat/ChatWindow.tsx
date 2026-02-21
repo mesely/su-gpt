@@ -7,14 +7,15 @@ import { useChatStore, useAuthStore, useCourseSelectionStore } from '@/lib/store
 import { api, Course } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
+// IF is not a real major — it's a pool of required courses.
+// Only real degree-granting majors listed here.
 const MAJOR_LABELS: Record<string, string> = {
-  CS: 'Bilgisayar Bil.',
-  IF: 'Bilgi Sistemleri',
-  EE: 'Elektrik-Elektronik',
-  ME: 'Makine Muh.',
-  IE: 'Endustri Muh.',
-  MAT: 'Matematik',
-  BIO: 'Biyoloji',
+  CS:   'Bilgisayar Bili.',
+  EE:   'Elektrik-Elektronik',
+  ME:   'Makine Muh.',
+  IE:   'Endustri Muh.',
+  MAT:  'Matematik',
+  BIO:  'Biyoloji',
   ECON: 'Ekonomi',
 }
 
@@ -254,28 +255,59 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
   ],
 }
 
+// Career / grad school info per track
+const TRACK_CAREER: Record<string, { jobs: string[]; grad: string[] }> = {
+  ai_nlp:         { jobs: ['NLP Muhendisi', 'ML Arastirmacisi', 'LLM Gelistirici', 'AI Urun Yoneticisi'], grad: ['Bilgisayar Bilimi MSc (NLP)', 'Yapay Zeka PhD', 'Hesaplamali Dilbilim MSc'] },
+  ai_cv:          { jobs: ['Bilgisayarli Goru Muhendisi', 'Otonom Sistemler Gelst.', 'Robotik Muh.', 'Medikal Goruntuleme Uzm.'], grad: ['Computer Vision MSc/PhD', 'Robotik MSc', 'EE MSc'] },
+  fullstack:      { jobs: ['Full Stack Gelistirici', 'Backend Muh.', 'Yazilim Mimari', 'Tech Lead'], grad: ['Yazilim Muh. MSc', 'CS MSc', 'Girisimcilik/MBA'] },
+  crypto:         { jobs: ['Siber Guvenlik Uzmani', 'Kriptografi Arastirmacisi', 'Blok Zinciri Gelst.', 'Guvenlik Muh.'], grad: ['Siber Guvenlik MSc', 'Kriptografi PhD', 'Bilgi Guvenligi MSc'] },
+  data_eng:       { jobs: ['Veri Muhendisi', 'MLOps Muh.', 'Veri Mimari', 'Analitik Muh.'], grad: ['Veri Bilimi MSc', 'CS MSc', 'Bilgi Sistemleri MSc'] },
+  control_cs:     { jobs: ['Kontrol Sistemleri Muh.', 'Robotik Yazilim Gelst.', 'Otomasyon Muh.'], grad: ['Kontrol Teorisi MSc/PhD', 'Robotik MSc', 'Mekatronik MSc'] },
+  ie_analytics:   { jobs: ['Veri Analisti', 'Is Zekasi Uzmani', 'Fintech Analisti'], grad: ['Endustri Muh. MSc', 'Veri Bilimi MSc', 'Is Analitigi MSc'] },
+  ie_optimization:{ jobs: ['Operasyon Arastirmasi Uzm.', 'Optimizasyon Muh.', 'Lojistik Planlayici'], grad: ['Yoneylem Arastirmasi MSc/PhD', 'Endustri Muh. MSc'] },
+  ie_supply:      { jobs: ['Tedarik Zinciri Analisti', 'Lojistik Yoneticisi', 'Operasyon Yoneticisi'], grad: ['Tedarik Zinciri MSc', 'MBA (Operations)', 'Endustri Muh. MSc'] },
+  ie_control:     { jobs: ['Otomasyon Muh.', 'Proses Kontrol Uzmani', 'Endustriyel IoT Gelst.'], grad: ['Kontrol Muh. MSc', 'Mekatronik MSc'] },
+  ie_product:     { jobs: ['Urun Yoneticisi', 'Is Gelistirme Uzmani', 'Strateji Danismani'], grad: ['MBA', 'Urun Yonetimi MSc', 'Isletme MSc'] },
+  me_control:     { jobs: ['Kontrol Sistemleri Muh.', 'Surec Muh.', 'Otomasyon Uzmani'], grad: ['Kontrol Teorisi MSc/PhD', 'Makine Muh. MSc'] },
+  me_robotics:    { jobs: ['Robotik Muh.', 'Mekatronik Muh.', 'Otonom Sistemler Gelst.'], grad: ['Robotik MSc/PhD', 'Mekatronik MSc', 'Makine Muh. MSc'] },
+  me_energy:      { jobs: ['Enerji Muh.', 'Yenilenebilir Enerji Uzm.', 'Termal Sistem Tasarimci'], grad: ['Enerji Sistemleri MSc', 'Makine Muh. MSc (Termodinamik)'] },
+  me_design:      { jobs: ['Urun Tasarim Muh.', 'CAD/CAM Uzmani', 'Mekanik Tasarimci'], grad: ['Makine Muh. MSc (Tasarim)', 'Endustriyel Tasarim MSc'] },
+  me_manufacturing:{ jobs: ['Uretim Muh.', 'Kalite Guvence Uzm.', 'Endustriyel Uretim Yoneticisi'], grad: ['Imalat Muh. MSc', 'Endustri Muh. MSc'] },
+  ee_embedded:    { jobs: ['Gomulu Sistemler Muh.', 'Donanim Yazilimi Gelst.', 'IoT Muh.'], grad: ['Gomulu Sistemler MSc', 'EE MSc'] },
+  ee_signal:      { jobs: ['DSP Muh.', 'Sinyal Isleme Uzm.', 'Ses/Goruntu Isleme Muh.'], grad: ['Sinyal Isleme MSc/PhD', 'EE MSc'] },
+  ee_control:     { jobs: ['Kontrol Sistemleri Muh.', 'Otomasyon Muh.', 'Guc Elektroniği Uzm.'], grad: ['Kontrol Teorisi MSc/PhD', 'EE MSc'] },
+  ee_power:       { jobs: ['Guc Sistemleri Muh.', 'Enerji Sektoru Danismani', 'Elektrik Dagitim Uzm.'], grad: ['Guc Sistemleri MSc', 'Enerji Muh. MSc'] },
+  ee_ai_hardware: { jobs: ['AI Chip Gelistirici', 'FPGA Muh.', 'Edge AI Uzmani'], grad: ['EE/CS MSc (AI odakli)', 'Computer Architecture PhD'] },
+  ai_general:     { jobs: ['ML Muh.', 'Veri Bilimcisi', 'AI Arastirmacisi', 'AI PM'], grad: ['Yapay Zeka MSc/PhD', 'Veri Bilimi MSc', 'CS MSc'] },
+  product:        { jobs: ['Urun Yoneticisi', 'Growth Analisti', 'Startup Kurucusu', 'Dijital Strateji Danismani'], grad: ['MBA', 'Urun Yonetimi MSc', 'Teknoloji Yonetimi MSc'] },
+  systems:        { jobs: ['Platform Muh.', 'Site Reliability Eng.', 'DevOps Muh.', 'Altyapi Mimari'], grad: ['Dagitik Sistemler MSc', 'CS MSc'] },
+  design_tech:    { jobs: ['UX Muh.', 'Kreatif Teknoloji Uzm.', 'Etkilesim Tasarimcisi'], grad: ['HCI MSc', 'Tasarim MSc', 'Medya Sanatlari MSc'] },
+  research:       { jobs: ['Arastirmaci (Akademik/Endustriyel)', 'AR-GE Proje Yoneticisi', 'Danisman'], grad: ['Herhangi bir MSc → PhD', 'Akademik kariyer'] },
+  undecided:      { jobs: ['Yazilim Gelistirici', 'Analitik Danisman', 'Teknoloji Uzmani'], grad: ['Ilgi alaniniza gore MSc secilebilir'] },
+}
+
 const PROFILE_OPTIONS = [
-  { id: 'coding', label: 'Kod yazmayi seviyorum' },
-  { id: 'math', label: 'Matematik/modelleme seviyorum' },
+  { id: 'coding',   label: 'Kod yazmayi seviyorum' },
+  { id: 'math',     label: 'Matematik/modelleme seviyorum' },
   { id: 'analysis', label: 'Veri analizi ilgimi cekiyor' },
-  { id: 'systems', label: 'Sistem/altyapi ilgimi cekiyor' },
+  { id: 'systems',  label: 'Sistem/altyapi ilgimi cekiyor' },
   { id: 'hardware', label: 'Donanim/robotik ilgimi cekiyor' },
-  { id: 'product', label: 'Urun/insan odakli seyler seviyorum' },
-  { id: 'design', label: 'Tasarim/yaratici isler seviyorum' },
+  { id: 'product',  label: 'Urun/insan odakli seyler seviyorum' },
+  { id: 'design',   label: 'Tasarim/yaratici isler seviyorum' },
   { id: 'business', label: 'Isletme/yonetim tarafi ilgimi cekiyor' },
 ]
 
 const MAJOR_CORE_HINTS: Record<string, string[]> = {
-  CS: ['CS201', 'CS204', 'CS300', 'CS301', 'CS303', 'CS306', 'CS308', 'CS395', 'ENS491', 'ENS492', 'MATH203', 'MATH204', 'MATH212', 'PHYS113'],
-  IE: ['MATH203', 'MATH204', 'ENS211'],
-  EE: ['MATH203', 'MATH212', 'PHYS113', 'EE202'],
-  ME: ['MATH203', 'MATH212', 'PHYS113', 'ME301'],
+  CS:  ['CS201', 'CS204', 'CS300', 'CS301', 'CS303', 'CS306', 'CS308', 'CS395', 'ENS491', 'ENS492', 'MATH203', 'MATH204', 'MATH212', 'PHYS113'],
+  IE:  ['MATH203', 'MATH204', 'ENS211'],
+  EE:  ['MATH203', 'MATH212', 'PHYS113', 'EE202'],
+  ME:  ['MATH203', 'MATH212', 'PHYS113', 'ME301'],
 }
 
 const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
-  easy: ['SPS303', 'HUM201'],
+  easy:     ['SPS303', 'HUM201'],
   balanced: ['SPS303', 'ECON201'],
-  hard: ['MATH306', 'ENS211'],
+  hard:     ['MATH306', 'ENS211'],
 }
 
 function detectIntent(question: string): IntentType {
@@ -290,8 +322,8 @@ function detectIntent(question: string): IntentType {
 function shortCourse(code: string, map: Map<string, Course>) {
   const c = map.get(code)
   if (!c) return `- **${code}**`
-  const desc = c.description ? ` - ${c.description.replace(/\s+/g, ' ').slice(0, 120)}...` : ''
-  return `- **${code}** - ${c.name}${desc}`
+  const name = c.name && c.name.trim() ? c.name : code
+  return `- **${code}** — ${name}`
 }
 
 function normalizeCategories(status: unknown) {
@@ -306,16 +338,14 @@ function normalizeCategories(status: unknown) {
         missingCourses: Array.isArray(c.missingCourses) ? (c.missingCourses as string[]) : [],
       }))
   }
-
   if (payload.categories && typeof payload.categories === 'object') {
     return Object.entries(payload.categories as Record<string, Record<string, unknown>>).map(([key, value]) => ({
       key,
       completed: Number(value.completed ?? 0),
-      required: Number(value.required ?? 0),
+      required:  Number(value.required ?? 0),
       missingCourses: Array.isArray(value.courses) ? (value.courses as string[]) : [],
     }))
   }
-
   return []
 }
 
@@ -336,7 +366,6 @@ function getTrackOptions(major: string): TrackOption[] {
 function rankTracksByProfile(major: string, profileTags: string[]): TrackOption[] {
   const options = getTrackOptions(major)
   if (profileTags.length === 0) return options
-
   return [...options].sort((a, b) => {
     const scoreA = a.tags.filter((t) => profileTags.includes(t)).length
     const scoreB = b.tags.filter((t) => profileTags.includes(t)).length
@@ -393,16 +422,12 @@ export function ChatWindow() {
     const map = new Map(courseMap)
     const needs = codes.filter((c) => c && !map.has(c))
     if (needs.length === 0) return map
-
     await Promise.all(needs.map(async (code) => {
       try {
         const c = await api.getCourse(token, code)
         map.set(c.fullCode, c)
-      } catch {
-        // ignore missing course rows
-      }
+      } catch { /* ignore */ }
     }))
-
     setCourseMap(map)
     return map
   }, [token, courseMap])
@@ -419,8 +444,8 @@ export function ChatWindow() {
     const categories = normalizeCategories(status)
 
     const totalCompleted = Number(payload.totalCompletedEcts ?? payload.completedEcts ?? 0)
-    const totalRequired = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 240)
-    const estimated = Number(payload.estimatedSemestersLeft ?? payload.estimatedSemesters ?? 0)
+    const totalRequired  = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 136)
+    const estimated      = Number(payload.estimatedSemestersLeft ?? payload.estimatedSemesters ?? 0)
 
     const missingCodesFromCategories = categories.flatMap((c) => c.missingCourses)
     const missingCodesRaw = Array.isArray(payload.missingCourses) ? (payload.missingCourses as string[]) : []
@@ -428,56 +453,48 @@ export function ChatWindow() {
     const map = await hydrateCourses(missingCodes)
 
     const categoryName: Record<string, string> = {
-      core: 'Zorunlu / Cekirdek',
-      area: 'Alan Secmeli',
+      core:         'Zorunlu / Cekirdek',
+      area:         'Alan Secmeli',
       basicScience: 'Temel Bilim',
-      free: 'Serbest Secmeli',
-      university: 'Universite Dersleri',
-      engineering: 'Muhendislik',
-      faculty: 'Fakulte',
+      free:         'Serbest Secmeli',
+      university:   'Universite Dersleri',
     }
 
     const categoryLines = categories.length
       ? categories.map((c) => {
-        const remain = Math.max(0, c.required - c.completed)
-        return `- **${categoryName[c.key] ?? c.key}**: ${c.completed}/${c.required} ECTS (kalan: ${remain})`
-      }).join('\n')
-      : '- Kategori detayi donmedi. Bu major icin yukumluluk dosyasini kontrol etmek gerekiyor.'
+          const remain = Math.max(0, c.required - c.completed)
+          return `- **${categoryName[c.key] ?? c.key}**: ${c.completed}/${c.required} SU Kredi (kalan: ${remain})`
+        }).join('\n')
+      : '- Kategori detayi donmedi.'
 
     const missingLines = missingCodes.length
       ? missingCodes.map((code) => shortCourse(code, map)).join('\n')
       : 'Eksik ders listesi bulunamadi.'
 
-    const warning = totalCompleted === 0 && selectedCourses.length > 0
-      ? '\n\nNot: Secili ders var ama backend bu major icin eslesme yapamadi. Kod formatini veya major secimini kontrol et.'
-      : ''
+    return `## Mezuniyet Durumu — ${major}
 
-    return `## Mezuniyet Durumu - ${major}
-
-Toplam: **${totalCompleted}/${totalRequired} ECTS**
+Toplam: **${totalCompleted}/${totalRequired} SU Kredi**
 
 ### Kategori Bazli Kalanlar
 ${categoryLines}
 
-### Eksik Derslerden Ornekler
+### Eksik Ders Ornekleri
 ${missingLines}
 
-Tahmini kalan donem: **${estimated || '?'}**${warning}`
-  }, [hydrateCourses, selectedCourses.length])
+Tahmini kalan donem: **${estimated || '?'}**`
+  }, [hydrateCourses])
 
   const formatFallbackGraduationReply = useCallback(async (major: string) => {
     const core = MAJOR_CORE_HINTS[major] ?? []
     const missing = core.filter((c) => !selectedCourses.includes(c)).slice(0, 10)
     const map = await hydrateCourses(missing)
 
-    return `## Mezuniyet Durumu - ${major}
+    return `## Mezuniyet Durumu — ${major}
 
-Sectigin **${selectedCourses.length} ders** uzerinden yerel bir kontrol yaptim.
+Sectigin **${selectedCourses.length} ders** uzerinden yerel kontrol yapildi.
 
 ### Eksik Cekirdek Ornekleri
-${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgin cekirdek eksigi gorunmuyor.'}
-
-Daha net kategori bazli sonuc icin mezuniyet endpoint cevabini da kontrol etmek gerekiyor.`
+${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgin cekirdek eksigi gorunmuyor.'}`
   }, [hydrateCourses, selectedCourses])
 
   const runGraduationAnalysis = useCallback(async (major: string) => {
@@ -491,11 +508,8 @@ Daha net kategori bazli sonuc icin mezuniyet endpoint cevabini da kontrol etmek 
         const text = await formatGraduationReply(major, status)
         await streamWizardReply(text)
         return
-      } catch {
-        // fallback below
-      }
+      } catch { /* fallback below */ }
     }
-
     const text = await formatFallbackGraduationReply(major)
     await streamWizardReply(text)
   }, [formatFallbackGraduationReply, formatGraduationReply, selectedCourses, streamWizardReply, studentId, token])
@@ -503,17 +517,15 @@ Daha net kategori bazli sonuc icin mezuniyet endpoint cevabini da kontrol etmek 
   const formatPlanReply = useCallback(async (major: string, trackIds: string[], difficulty: Exclude<Difficulty, null>) => {
     const tracks = rankTracksByProfile(major, wizard.profileTags).filter((t) => trackIds.includes(t.id))
     const trackCourses = tracks.flatMap((t) => t.courses)
-
     const corePool = MAJOR_CORE_HINTS[major] ?? []
     const coreNeed = corePool.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 3 : difficulty === 'balanced' ? 2 : 1)
     const trackNeed = trackCourses.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 4 : difficulty === 'balanced' ? 3 : 2)
     const helper = SUPPORTER_COURSES[difficulty]
-
     const finalList = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
     const map = await hydrateCourses(finalList)
     const trackLabel = tracks.map((t) => t.label).join(' + ')
 
-    return `## Bu Donem Ne Almaliyim? - ${major}
+    return `## Bu Donem Ne Almaliyim? — ${major}
 
 Secilen alan: **${trackLabel || 'Karisik'}** · Zorluk: **${difficulty}**
 
@@ -521,7 +533,7 @@ ${finalList.map((c) => shortCourse(c, map)).join('\n')}
 
 Yol notu: ${tracks.length ? tracks.map((t) => t.description).join(' | ') : 'Dengeli ilerleme secildi.'}
 
-Yeni alternatif istersen \"daha kolay\" veya \"daha zor\" yaz.`
+Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
   }, [hydrateCourses, selectedCourses, wizard.profileTags])
 
   const formatPathReply = useCallback(async (major: string, trackIds: string[]) => {
@@ -530,17 +542,30 @@ Yeni alternatif istersen \"daha kolay\" veya \"daha zor\" yaz.`
     const map = await hydrateCourses(allCodes)
 
     const sections = tracks.map((track) => {
-      const done = track.courses.filter((c) => selectedCourses.includes(c)).length
-      const total = track.courses.length
-      const pct = total ? Math.round((done / total) * 100) : 0
+      const done    = track.courses.filter((c) => selectedCourses.includes(c)).length
+      const total   = track.courses.length
+      const pct     = total ? Math.round((done / total) * 100) : 0
       const missing = track.courses.filter((c) => !selectedCourses.includes(c)).slice(0, 6)
+      const career  = TRACK_CAREER[track.id]
 
-      return `### ${track.label}\nTamamlanma: **%${pct}** (${done}/${total})\n${track.description}\n${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Bu alan icin onerilen derslerin cogu tamam.'}`
+      const courseSection = missing.length
+        ? `**Once al:**\n${missing.map((c) => shortCourse(c, map)).join('\n')}`
+        : 'Bu alan icin onerilen derslerin cogu tamam.'
+
+      const jobSection = career?.jobs?.length
+        ? `\n\n**Kariyer firsatlari:** ${career.jobs.join(' · ')}`
+        : ''
+
+      const gradSection = career?.grad?.length
+        ? `\n**Yuksek lisans / Doktora:** ${career.grad.join(' · ')}`
+        : ''
+
+      return `### ${track.label}\nTamamlanma: **%${pct}** (${done}/${total} ders)\n${track.description}\n\n${courseSection}${jobSection}${gradSection}`
     })
 
     return `## Hangi Alanda Ilerlemeliyim?
 
-Profil secimlerin: **${wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Belirtilmedi'}**
+Profil secimin: **${wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Belirtilmedi'}**
 
 ${sections.join('\n\n')}`
   }, [hydrateCourses, selectedCourses, wizard.profileTags])
@@ -550,7 +575,6 @@ ${sections.join('\n\n')}`
     addMessage({ role: 'user', content: question })
     addMessage({ role: 'assistant', content: '' })
     setStreaming(true)
-
     try {
       const stream = api.askStream(token, {
         question,
@@ -565,7 +589,6 @@ ${sections.join('\n\n')}`
         if (done) break
         appendToLast(value)
       }
-      appendToLast('\n\n_Not: Matematik/kodlama icin ozel fine-tuned model degilim; kritik kisimlari dogrulamani oneririm._')
     } catch (err) {
       appendToLast(`\n\n[Hata: ${err instanceof Error ? err.message : 'Bilinmeyen hata'}]`)
     } finally {
@@ -573,11 +596,20 @@ ${sections.join('\n\n')}`
     }
   }, [isStreaming, token, studentId, authMajor, selectedCourses, addMessage, appendToLast, setStreaming])
 
+  // Graduation wizard: no longer asks major — uses authMajor directly
   const startGraduationWizard = useCallback(() => {
     if (isStreaming) return
-    addMessage({ role: 'assistant', content: 'Mezuniyet analizi icin once bolumunu sec.', isWizard: true })
-    setWizard({ ...INITIAL_WIZARD, type: 'graduation', step: 'major-select' })
-  }, [isStreaming, addMessage])
+    const major = authMajor || 'CS'
+    if (isComplete && selectedCourses.length > 0) {
+      addMessage({ role: 'assistant', content: 'Mezuniyet analizi hesaplaniyor...', isWizard: true })
+      setWizard({ ...INITIAL_WIZARD, type: 'graduation', step: 'sending', major })
+      runGraduationAnalysis(major).then(() => setWizard(INITIAL_WIZARD))
+    } else {
+      addMessage({ role: 'assistant', content: 'Aldigin dersleri sec, mezuniyet durumunu hesaplayalim.', isWizard: true })
+      setWizard({ ...INITIAL_WIZARD, type: 'graduation', step: 'course-select', major })
+      setShowPanel(true)
+    }
+  }, [isStreaming, authMajor, isComplete, selectedCourses.length, addMessage, runGraduationAnalysis])
 
   const startPlanWizard = useCallback(() => {
     if (isStreaming) return
@@ -605,23 +637,11 @@ ${sections.join('\n\n')}`
 
     if (step === 'major-select' && payload.major) {
       const selectedMajor = payload.major
-      addMessage({ role: 'user', content: `${selectedMajor} - ${MAJOR_LABELS[selectedMajor] ?? selectedMajor}` })
-
-      if (type === 'graduation') {
-        setWizard((w) => ({ ...w, major: selectedMajor, step: 'course-select' }))
-        if (isComplete && selectedCourses.length > 0) {
-          await runGraduationAnalysis(selectedMajor)
-          setWizard(INITIAL_WIZARD)
-        } else {
-          addMessage({ role: 'assistant', content: 'Ders panelinden aldigin dersleri sec ve Kaydet de.', isWizard: true })
-          setShowPanel(true)
-        }
-        return
-      }
+      addMessage({ role: 'user', content: `${selectedMajor} — ${MAJOR_LABELS[selectedMajor] ?? selectedMajor}` })
 
       if (type === 'plan') {
         if (isComplete && selectedCourses.length > 0) {
-          addMessage({ role: 'assistant', content: 'En fazla 2 alan secebilirsin. Kararsizim da seceneklerde var.', isWizard: true })
+          addMessage({ role: 'assistant', content: 'En fazla 2 alan secebilirsin.', isWizard: true })
           setWizard((w) => ({ ...w, major: selectedMajor, step: 'track-select' }))
         } else {
           addMessage({ role: 'assistant', content: 'Once aldigin dersleri secelim, sonra alan seceriz.', isWizard: true })
@@ -632,7 +652,7 @@ ${sections.join('\n\n')}`
       }
 
       if (type === 'path') {
-        addMessage({ role: 'assistant', content: 'Seni tanimak icin en az 1, en fazla 3 ozellik sec. Sonra alan onerecegim.', isWizard: true })
+        addMessage({ role: 'assistant', content: 'Seni tanimak icin en az 1, en fazla 3 ozellik sec.', isWizard: true })
         setWizard((w) => ({ ...w, major: selectedMajor, step: 'profile-select', profileTags: [], selectedTracks: [] }))
       }
       return
@@ -649,7 +669,11 @@ ${sections.join('\n\n')}`
         return
       }
 
-      addMessage({ role: 'assistant', content: type === 'path' ? 'Simdi seni tanimak icin birkac secim yap.' : 'Simdi alan secelim. En fazla 2 alan secebilirsin.', isWizard: true })
+      addMessage({
+        role: 'assistant',
+        content: type === 'path' ? 'Simdi seni tanimak icin birkac secim yap.' : 'Simdi alan secelim. En fazla 2 alan secebilirsin.',
+        isWizard: true,
+      })
       setWizard((w) => ({ ...w, step: type === 'path' ? 'profile-select' : 'track-select' }))
       return
     }
@@ -657,9 +681,7 @@ ${sections.join('\n\n')}`
     if (step === 'profile-select' && payload.profileTag) {
       setWizard((w) => {
         const exists = w.profileTags.includes(payload.profileTag as string)
-        if (exists) {
-          return { ...w, profileTags: w.profileTags.filter((t) => t !== payload.profileTag) }
-        }
+        if (exists) return { ...w, profileTags: w.profileTags.filter((t) => t !== payload.profileTag) }
         if (w.profileTags.length >= 3) return w
         return { ...w, profileTags: [...w.profileTags, payload.profileTag as string] }
       })
@@ -677,12 +699,8 @@ ${sections.join('\n\n')}`
       const trackId = payload.trackToggle
       setWizard((w) => {
         const exists = w.selectedTracks.includes(trackId)
-        if (exists) {
-          return { ...w, selectedTracks: w.selectedTracks.filter((t) => t !== trackId) }
-        }
-        if (trackId === 'undecided') {
-          return { ...w, selectedTracks: ['undecided'] }
-        }
+        if (exists) return { ...w, selectedTracks: w.selectedTracks.filter((t) => t !== trackId) }
+        if (trackId === 'undecided') return { ...w, selectedTracks: ['undecided'] }
         const withoutUndecided = w.selectedTracks.filter((t) => t !== 'undecided')
         if (withoutUndecided.length >= 2) return w
         return { ...w, selectedTracks: [...withoutUndecided, trackId] }
@@ -692,7 +710,6 @@ ${sections.join('\n\n')}`
 
     if (step === 'track-select' && payload.tracksDone) {
       if (wizard.selectedTracks.length === 0) return
-
       const ranked = rankTracksByProfile(major || authMajor, wizard.profileTags)
       const selectedLabels = ranked.filter((t) => wizard.selectedTracks.includes(t.id)).map((t) => t.label)
       addMessage({ role: 'user', content: selectedLabels.join(' + ') })
@@ -717,17 +734,9 @@ ${sections.join('\n\n')}`
       setWizard(INITIAL_WIZARD)
     }
   }, [
-    addMessage,
-    authMajor,
-    formatPathReply,
-    formatPlanReply,
-    isComplete,
-    isStreaming,
-    markComplete,
-    runGraduationAnalysis,
-    selectedCourses.length,
-    streamWizardReply,
-    wizard,
+    addMessage, authMajor, formatPathReply, formatPlanReply, isComplete,
+    isStreaming, markComplete, runGraduationAnalysis, selectedCourses.length,
+    streamWizardReply, wizard,
   ])
 
   const dispatchInput = useCallback((text: string) => {
@@ -742,64 +751,70 @@ ${sections.join('\n\n')}`
     }
 
     const intent = detectIntent(cleaned)
-    if (intent === 'graduation') return startGraduationWizard()
-    if (intent === 'plan') return startPlanWizard()
-    if (intent === 'path') return startPathWizard()
+    if (intent === 'graduation') {
+      addMessage({ role: 'user', content: cleaned })
+      return startGraduationWizard()
+    }
+    if (intent === 'plan') {
+      addMessage({ role: 'user', content: cleaned })
+      return startPlanWizard()
+    }
+    if (intent === 'path') {
+      addMessage({ role: 'user', content: cleaned })
+      return startPathWizard()
+    }
 
     setWizard(INITIAL_WIZARD)
-    if (/(sinav|sınav|gecmis sinav|geçmiş sınav)/i.test(cleaned)) {
-      return sendRag(`${cleaned}\n\nEger veri yoksa net soyle. PDF veya resmi kaynak yoksa tahmin yurutme.`, 'course_qa')
-    }
     sendRag(cleaned)
-  }, [handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
+  }, [addMessage, handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (input.trim()) {
-        dispatchInput(input)
-        setInput('')
-      }
+      if (input.trim()) { dispatchInput(input); setInput('') }
     }
   }
 
   const handleSend = () => {
-    if (input.trim()) {
-      dispatchInput(input)
-      setInput('')
-    }
+    if (input.trim()) { dispatchInput(input); setInput('') }
   }
 
-  const trackOptions = useMemo(() => rankTracksByProfile(wizard.major || authMajor, wizard.profileTags), [authMajor, wizard.major, wizard.profileTags])
+  const trackOptions = useMemo(
+    () => rankTracksByProfile(wizard.major || authMajor, wizard.profileTags),
+    [authMajor, wizard.major, wizard.profileTags],
+  )
 
   return (
-    <div className="flex h-full gap-4">
-      <div className="hidden lg:flex w-72 glass rounded-[24px] p-3 flex-col gap-2 shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-white/50 uppercase tracking-widest">Sohbet Gecmisi</p>
-          <button onClick={newSession} className="text-xs px-2 py-1 rounded-lg bg-su-500/30 text-su-300">+ Yeni</button>
+    <div className="flex h-full gap-3">
+      {/* Sessions sidebar — hidden when course panel is open (avoids cramping) */}
+      {!showPanel && (
+        <div className="hidden lg:flex w-64 glass rounded-[22px] p-3 flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-white/40 uppercase tracking-widest">Gecmis</p>
+            <button onClick={newSession} className="text-xs px-2 py-1 rounded-lg bg-su-500/30 text-su-300">+ Yeni</button>
+          </div>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-1.5">
+            {sortedSessions.map((s) => (
+              <div key={s.id} className={cn('rounded-xl p-2 border transition-all', s.id === activeSessionId ? 'border-su-300/40 bg-su-500/15' : 'border-white/8 bg-white/4')}>
+                <button className="w-full text-left" onClick={() => switchSession(s.id)}>
+                  <p className="text-xs text-white truncate">{s.title}</p>
+                  <p className="text-[10px] text-white/35">{new Date(s.updatedAt).toLocaleString('tr-TR')}</p>
+                </button>
+                <button onClick={() => deleteSession(s.id)} className="text-[10px] text-white/25 hover:text-red-300 mt-1">sil</button>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto flex flex-col gap-2">
-          {sortedSessions.map((s) => (
-            <div key={s.id} className={cn('rounded-xl p-2 border transition-all', s.id === activeSessionId ? 'border-su-300/50 bg-su-500/15' : 'border-white/10 bg-white/5')}>
-              <button className="w-full text-left" onClick={() => switchSession(s.id)}>
-                <p className="text-sm text-white truncate">{s.title}</p>
-                <p className="text-[10px] text-white/40">{new Date(s.updatedAt).toLocaleString('tr-TR')}</p>
-              </button>
-              <button onClick={() => deleteSession(s.id)} className="text-[10px] text-white/35 hover:text-red-300 mt-1">sil</button>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
+      {/* Main chat area */}
       <div className="flex flex-col flex-1 glass rounded-[28px] overflow-hidden min-w-0">
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           {messages.length === 0 && (
-            <div className="flex-1 flex items-center justify-center text-center text-white/60 text-sm">
-              3 hazir sorudan birini sec veya direkt acik uclu soru yaz.
+            <div className="flex-1 flex items-center justify-center text-center text-white/50 text-sm">
+              Asagidaki seceneklerden birini kullan veya direkt soru sor.
             </div>
           )}
-
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
@@ -810,7 +825,8 @@ ${sections.join('\n\n')}`
                 <p className="text-xs text-white/50 mb-3">Ne okuyorsun?</p>
                 <div className="flex flex-wrap gap-2">
                   {MAJORS.map((m) => (
-                    <button key={m} onClick={() => handleWizardSelect({ major: m })} className="glass glass-hover rounded-xl px-3 py-1.5 text-xs text-white/80 hover:text-white">
+                    <button key={m} onClick={() => handleWizardSelect({ major: m })}
+                      className="glass glass-hover rounded-xl px-3 py-1.5 text-xs text-white/80 hover:text-white">
                       <span className="font-bold text-su-300">{m}</span>
                       <span className="text-white/40 ml-1">{MAJOR_LABELS[m]}</span>
                     </button>
@@ -822,7 +838,8 @@ ${sections.join('\n\n')}`
             {wizard.step === 'course-select' && !showPanel && (
               <WizardCard key="coursePrompt">
                 <p className="text-xs text-white/50 mb-2">Ders panelini acip aldigin dersleri sec.</p>
-                <button onClick={() => setShowPanel(true)} className="text-xs px-3 py-1.5 rounded-xl bg-su-500/20 border border-su-300/30 text-su-300 hover:bg-su-500/30">
+                <button onClick={() => setShowPanel(true)}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500/20 border border-su-300/30 text-su-300 hover:bg-su-500/30">
                   Paneli ac
                 </button>
               </WizardCard>
@@ -830,8 +847,10 @@ ${sections.join('\n\n')}`
 
             {wizard.step === 'course-select' && showPanel && (
               <WizardCard key="courseDone">
-                <p className="text-xs text-white/50 mb-2">{selectedCourses.length} ders secildi. Kaydet ile devam et.</p>
-                <button onClick={() => handleWizardSelect({ coursesDone: true })} disabled={selectedCourses.length === 0} className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30">
+                <p className="text-xs text-white/50 mb-2">{selectedCourses.length} ders secildi. Devam et.</p>
+                <button onClick={() => handleWizardSelect({ coursesDone: true })}
+                  disabled={selectedCourses.length === 0}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30">
                   Devam et
                 </button>
               </WizardCard>
@@ -844,23 +863,16 @@ ${sections.join('\n\n')}`
                   {PROFILE_OPTIONS.map((p) => {
                     const picked = wizard.profileTags.includes(p.id)
                     return (
-                      <button
-                        key={p.id}
-                        onClick={() => handleWizardSelect({ profileTag: p.id })}
-                        className={cn(
-                          'rounded-xl px-3 py-2 text-xs text-left border transition-all',
-                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white',
-                        )}
-                      >
+                      <button key={p.id} onClick={() => handleWizardSelect({ profileTag: p.id })}
+                        className={cn('rounded-xl px-3 py-2 text-xs text-left border transition-all',
+                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white')}>
                         {p.label}
                       </button>
                     )
                   })}
                 </div>
-                <button
-                  onClick={() => handleWizardSelect({ profileDone: true })}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300"
-                >
+                <button onClick={() => handleWizardSelect({ profileDone: true })}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300">
                   Alanlari goster
                 </button>
               </WizardCard>
@@ -868,30 +880,23 @@ ${sections.join('\n\n')}`
 
             {wizard.step === 'track-select' && (
               <WizardCard key="track">
-                <p className="text-xs text-white/50 mb-2">En az 1, en fazla 2 alan sec. (Kararsizim secenegi var)</p>
+                <p className="text-xs text-white/50 mb-2">En az 1, en fazla 2 alan sec.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
                   {trackOptions.slice(0, 8).map((track) => {
                     const picked = wizard.selectedTracks.includes(track.id)
                     return (
-                      <button
-                        key={track.id}
-                        onClick={() => handleWizardSelect({ trackToggle: track.id })}
-                        className={cn(
-                          'rounded-xl px-3 py-2 text-left border transition-all',
-                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white',
-                        )}
-                      >
+                      <button key={track.id} onClick={() => handleWizardSelect({ trackToggle: track.id })}
+                        className={cn('rounded-xl px-3 py-2 text-left border transition-all',
+                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white')}>
                         <p className="text-xs font-semibold">{track.label}</p>
-                        <p className="text-[11px] text-white/55 mt-1">{track.description}</p>
+                        <p className="text-[11px] text-white/55 mt-0.5">{track.description}</p>
                       </button>
                     )
                   })}
                 </div>
-                <button
-                  onClick={() => handleWizardSelect({ tracksDone: true })}
+                <button onClick={() => handleWizardSelect({ tracksDone: true })}
                   disabled={wizard.selectedTracks.length === 0}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30"
-                >
+                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-30">
                   Devam et
                 </button>
               </WizardCard>
@@ -912,13 +917,27 @@ ${sections.join('\n\n')}`
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-white/10 p-3 flex flex-col gap-2">
+        {/* Input area */}
+        <div className="border-t border-white/8 p-3 flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
-            <QuickChip label="Mezuniyet Durumu" onClick={startGraduationWizard} disabled={isStreaming} />
-            <QuickChip label="Bu donem ne almaliyim?" onClick={startPlanWizard} disabled={isStreaming} />
-            <QuickChip label="Hangi alanda ilerlemeliyim?" onClick={startPathWizard} disabled={isStreaming} />
-            <button onClick={() => setShowPanel(true)} className="text-xs text-white/45 hover:text-white/80 px-2">Derslerimi guncelle</button>
-            <button onClick={clearMessages} className="text-xs text-white/35 hover:text-white/70 px-2">Sohbeti temizle</button>
+            <QuickChip label="Mezuniyet Durumu" onClick={() => {
+              addMessage({ role: 'user', content: 'Mezuniyet Durumu' })
+              startGraduationWizard()
+            }} disabled={isStreaming} />
+            <QuickChip label="Bu donem ne almaliyim?" onClick={() => {
+              addMessage({ role: 'user', content: 'Bu donem ne almaliyim?' })
+              startPlanWizard()
+            }} disabled={isStreaming} />
+            <QuickChip label="Hangi alanda ilerlemeliyim?" onClick={() => {
+              addMessage({ role: 'user', content: 'Hangi alanda ilerlemeliyim?' })
+              startPathWizard()
+            }} disabled={isStreaming} />
+            <button onClick={() => setShowPanel(true)} className="text-xs text-white/40 hover:text-white/80 px-2">
+              Derslerimi Guncelle
+            </button>
+            <button onClick={clearMessages} className="text-xs text-white/30 hover:text-white/60 px-2">
+              Temizle
+            </button>
           </div>
 
           <div className="flex gap-2 items-end">
@@ -951,11 +970,12 @@ ${sections.join('\n\n')}`
         </div>
       </div>
 
+      {/* Course selector panel */}
       <AnimatePresence>
         {showPanel && (
           <motion.div
             initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: 390 }}
+            animate={{ opacity: 1, width: 380 }}
             exit={{ opacity: 0, width: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="shrink-0 glass rounded-[28px] overflow-hidden flex flex-col"
@@ -975,11 +995,8 @@ ${sections.join('\n\n')}`
 
 function QuickChip({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="glass glass-hover rounded-xl px-3 py-1.5 text-xs text-white/80 hover:text-white disabled:opacity-40"
-    >
+    <button onClick={onClick} disabled={disabled}
+      className="glass glass-hover rounded-xl px-3 py-1.5 text-xs text-white/80 hover:text-white disabled:opacity-40">
       {label}
     </button>
   )
@@ -987,12 +1004,7 @@ function QuickChip({ label, onClick, disabled }: { label: string; onClick: () =>
 
 function WizardCard({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      className="self-start max-w-3xl"
-    >
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="self-start max-w-3xl">
       <div className="glass rounded-2xl px-4 py-3 border border-su-300/20">
         {children}
       </div>
