@@ -76,8 +76,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 shrink-0 border-b border-white/8"
-          style={{ paddingTop: '12px', paddingBottom: '12px', background: 'rgba(0,21,47,0.6)', backdropFilter: 'blur(20px)' }}>
+        <div className="lg:hidden flex items-center gap-3 px-4 shrink-0 border-b border-white/12"
+          style={{
+            paddingTop: '12px',
+            paddingBottom: '12px',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)',
+            backdropFilter: 'blur(28px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+          }}>
           <button
             onClick={() => setMobileOpen(true)}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all"
@@ -87,7 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <p className="text-sm font-semibold text-white">SU Advisor</p>
         </div>
 
-        <main className="flex-1 min-h-0 overflow-hidden p-3 lg:p-4">
+        <main className="flex-1 min-h-0 overflow-hidden p-3 lg:p-4 pb-[max(env(safe-area-inset-bottom),12px)]">
           {children}
         </main>
       </div>

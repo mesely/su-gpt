@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 // IF is not a real major — it's a pool of required courses.
 // Only real degree-granting majors listed here.
 const MAJOR_LABELS: Record<string, string> = {
-  CS:   'Bilgisayar Bili.',
+  CS:   'Bilgisayar Bilimi',
   EE:   'Elektrik-Elektronik',
   ME:   'Makine Muh.',
   IE:   'Endustri Muh.',
@@ -103,14 +103,14 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'ai_nlp',
       label: 'AI - NLP',
       description: 'Dogal dil isleme, LLM ve metin madenciligi.',
-      courses: ['CS412', 'VS445', 'CS464', 'CS461', 'CS514'],
+      courses: ['CS412', 'CS415', 'CS445', 'CS455'],
       tags: ['ml', 'coding', 'analysis'],
     },
     {
       id: 'ai_cv',
       label: 'AI - Computer Vision',
       description: 'Goruntu isleme, derin ogrenme ve algi.',
-      courses: ['EE417', 'CS484', 'CS585', 'MATH203'],
+      courses: ['CS419', 'CS415', 'CS412', 'MATH203'],
       tags: ['ml', 'math', 'coding'],
     },
     {
@@ -124,7 +124,7 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'crypto',
       label: 'Kriptografi / Guvenlik',
       description: 'Guvenli sistemler, protokoller ve teori.',
-      courses: ['CS403', 'CS404', 'CS406', 'MATH306', 'CS301'],
+      courses: ['CS411', 'CS432', 'CS437', 'CS438', 'MATH306'],
       tags: ['math', 'systems', 'coding'],
     },
     {
@@ -138,7 +138,7 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'control_cs',
       label: 'Control & Robotics',
       description: 'Kontrol, gomulu ve robotik baglantisi.',
-      courses: ['ENS211', 'EE202', 'ME301', 'CS412'],
+      courses: ['ENS206', 'ENS202', 'ME403', 'CS412'],
       tags: ['hardware', 'math', 'coding'],
     },
   ],
@@ -147,35 +147,35 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'ie_analytics',
       label: 'Analytics',
       description: 'Veri analizi ve karar destek.',
-      courses: ['IE303', 'IE304', 'MATH203', 'CS412'],
+      courses: ['IE305', 'IE311', 'MATH203', 'CS412'],
       tags: ['analysis', 'math', 'business'],
     },
     {
       id: 'ie_optimization',
       label: 'Optimization',
       description: 'Modelleme ve optimizasyon agirlikli.',
-      courses: ['IE302', 'IE306', 'MATH204', 'MATH306'],
+      courses: ['IE302', 'IE311', 'IE313', 'MATH306'],
       tags: ['math', 'analysis', 'research'],
     },
     {
       id: 'ie_supply',
       label: 'Supply Chain',
       description: 'Lojistik, planlama ve operasyon.',
-      courses: ['IE312', 'IE314', 'ECON201', 'MAN202'],
+      courses: ['IE305', 'IE311', 'IE313', 'ECON201'],
       tags: ['business', 'analysis', 'product'],
     },
     {
       id: 'ie_control',
       label: 'Control Path',
       description: 'IE + kontrol/sistem hibriti.',
-      courses: ['ENS211', 'EE202', 'IE303', 'ME301'],
+      courses: ['ENS206', 'ENS202', 'IE305', 'ME301'],
       tags: ['math', 'hardware', 'systems'],
     },
     {
       id: 'ie_product',
       label: 'Product Operations',
       description: 'Urun-karar-metrik odakli teknik yon.',
-      courses: ['IE303', 'CS306', 'SPS303', 'MAN201'],
+      courses: ['IE305', 'CS306', 'SPS303', 'IF201'],
       tags: ['product', 'business', 'analysis'],
     },
   ],
@@ -184,35 +184,35 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'me_control',
       label: 'Control Systems',
       description: 'Kontrol teorisi ve dinamik sistemler.',
-      courses: ['ENS211', 'ME301', 'EE202', 'MATH212'],
+      courses: ['ENS206', 'ME301', 'MATH212', 'MATH203'],
       tags: ['math', 'hardware', 'systems'],
     },
     {
       id: 'me_robotics',
       label: 'Robotics',
       description: 'Mekatronik, algi, kontrol.',
-      courses: ['ME301', 'EE202', 'CS412', 'ENS491'],
+      courses: ['ME403', 'ME409', 'ENS206', 'CS412'],
       tags: ['hardware', 'coding', 'systems'],
     },
     {
       id: 'me_energy',
       label: 'Energy / Thermal',
       description: 'Enerji sistemleri ve termal analiz.',
-      courses: ['ME3XX', 'MATH203', 'PHYS113', 'ECON201'],
+      courses: ['ENS202', 'ME307', 'MATH203', 'PHYS113'],
       tags: ['math', 'analysis', 'research'],
     },
     {
       id: 'me_design',
       label: 'Mechanical Design',
       description: 'Tasarim, imalat ve urun gelistirme.',
-      courses: ['ME2XX', 'ME3XX', 'MAN201', 'ENS492'],
+      courses: ['ME301', 'ME302', 'ME415', 'ENS492'],
       tags: ['design', 'product', 'hardware'],
     },
     {
       id: 'me_manufacturing',
       label: 'Manufacturing',
       description: 'Uretim sistemleri ve proses iyilestirme.',
-      courses: ['ME3XX', 'IE312', 'IE303', 'MAN202'],
+      courses: ['ME302', 'ME415', 'IE305', 'IE311'],
       tags: ['systems', 'business', 'analysis'],
     },
   ],
@@ -221,35 +221,35 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
       id: 'ee_embedded',
       label: 'Embedded Systems',
       description: 'Gomulu yazilim ve donanim butunlugu.',
-      courses: ['EE202', 'EE3XX', 'CS307', 'CS308'],
+      courses: ['EE302', 'EE303', 'CS307', 'CS310'],
       tags: ['hardware', 'coding', 'systems'],
     },
     {
       id: 'ee_signal',
       label: 'Signals & DSP',
       description: 'Sinyal isleme ve matematiksel modelleme.',
-      courses: ['EE3XX', 'MATH203', 'MATH212', 'CS412'],
+      courses: ['EE311', 'EE312', 'MATH203', 'CS412'],
       tags: ['math', 'analysis', 'hardware'],
     },
     {
       id: 'ee_control',
       label: 'Control Path',
       description: 'Kontrol, otomasyon ve sistem tasarimi.',
-      courses: ['ENS211', 'EE202', 'ME301', 'MATH212'],
+      courses: ['ENS206', 'EE311', 'MATH212', 'ME301'],
       tags: ['math', 'systems', 'hardware'],
     },
     {
       id: 'ee_power',
       label: 'Power Systems',
       description: 'Enerji ve guc sistemleri yonu.',
-      courses: ['EE3XX', 'PHYS113', 'MATH203', 'ECON201'],
+      courses: ['EE410', 'EE408', 'MATH203', 'PHYS113'],
       tags: ['hardware', 'analysis', 'research'],
     },
     {
       id: 'ee_ai_hardware',
       label: 'AI on Hardware',
       description: 'AI algoritmalarinin donanim uygulamasi.',
-      courses: ['CS412', 'EE417', 'EE202', 'CS403'],
+      courses: ['CS412', 'EE404', 'EE473', 'CS403'],
       tags: ['ml', 'hardware', 'coding'],
     },
   ],
@@ -257,27 +257,27 @@ const MAJOR_TRACKS: Record<string, TrackOption[]> = {
 
 // Career / grad school info per track
 const TRACK_CAREER: Record<string, { jobs: string[]; grad: string[] }> = {
-  ai_nlp:         { jobs: ['NLP Muhendisi', 'ML Arastirmacisi', 'LLM Gelistirici', 'AI Urun Yoneticisi'], grad: ['Bilgisayar Bilimi MSc (NLP)', 'Yapay Zeka PhD', 'Hesaplamali Dilbilim MSc'] },
-  ai_cv:          { jobs: ['Bilgisayarli Goru Muhendisi', 'Otonom Sistemler Gelst.', 'Robotik Muh.', 'Medikal Goruntuleme Uzm.'], grad: ['Computer Vision MSc/PhD', 'Robotik MSc', 'EE MSc'] },
-  fullstack:      { jobs: ['Full Stack Gelistirici', 'Backend Muh.', 'Yazilim Mimari', 'Tech Lead'], grad: ['Yazilim Muh. MSc', 'CS MSc', 'Girisimcilik/MBA'] },
-  crypto:         { jobs: ['Siber Guvenlik Uzmani', 'Kriptografi Arastirmacisi', 'Blok Zinciri Gelst.', 'Guvenlik Muh.'], grad: ['Siber Guvenlik MSc', 'Kriptografi PhD', 'Bilgi Guvenligi MSc'] },
-  data_eng:       { jobs: ['Veri Muhendisi', 'MLOps Muh.', 'Veri Mimari', 'Analitik Muh.'], grad: ['Veri Bilimi MSc', 'CS MSc', 'Bilgi Sistemleri MSc'] },
-  control_cs:     { jobs: ['Kontrol Sistemleri Muh.', 'Robotik Yazilim Gelst.', 'Otomasyon Muh.'], grad: ['Kontrol Teorisi MSc/PhD', 'Robotik MSc', 'Mekatronik MSc'] },
-  ie_analytics:   { jobs: ['Veri Analisti', 'Is Zekasi Uzmani', 'Fintech Analisti'], grad: ['Endustri Muh. MSc', 'Veri Bilimi MSc', 'Is Analitigi MSc'] },
-  ie_optimization:{ jobs: ['Operasyon Arastirmasi Uzm.', 'Optimizasyon Muh.', 'Lojistik Planlayici'], grad: ['Yoneylem Arastirmasi MSc/PhD', 'Endustri Muh. MSc'] },
-  ie_supply:      { jobs: ['Tedarik Zinciri Analisti', 'Lojistik Yoneticisi', 'Operasyon Yoneticisi'], grad: ['Tedarik Zinciri MSc', 'MBA (Operations)', 'Endustri Muh. MSc'] },
-  ie_control:     { jobs: ['Otomasyon Muh.', 'Proses Kontrol Uzmani', 'Endustriyel IoT Gelst.'], grad: ['Kontrol Muh. MSc', 'Mekatronik MSc'] },
-  ie_product:     { jobs: ['Urun Yoneticisi', 'Is Gelistirme Uzmani', 'Strateji Danismani'], grad: ['MBA', 'Urun Yonetimi MSc', 'Isletme MSc'] },
-  me_control:     { jobs: ['Kontrol Sistemleri Muh.', 'Surec Muh.', 'Otomasyon Uzmani'], grad: ['Kontrol Teorisi MSc/PhD', 'Makine Muh. MSc'] },
-  me_robotics:    { jobs: ['Robotik Muh.', 'Mekatronik Muh.', 'Otonom Sistemler Gelst.'], grad: ['Robotik MSc/PhD', 'Mekatronik MSc', 'Makine Muh. MSc'] },
-  me_energy:      { jobs: ['Enerji Muh.', 'Yenilenebilir Enerji Uzm.', 'Termal Sistem Tasarimci'], grad: ['Enerji Sistemleri MSc', 'Makine Muh. MSc (Termodinamik)'] },
-  me_design:      { jobs: ['Urun Tasarim Muh.', 'CAD/CAM Uzmani', 'Mekanik Tasarimci'], grad: ['Makine Muh. MSc (Tasarim)', 'Endustriyel Tasarim MSc'] },
-  me_manufacturing:{ jobs: ['Uretim Muh.', 'Kalite Guvence Uzm.', 'Endustriyel Uretim Yoneticisi'], grad: ['Imalat Muh. MSc', 'Endustri Muh. MSc'] },
-  ee_embedded:    { jobs: ['Gomulu Sistemler Muh.', 'Donanim Yazilimi Gelst.', 'IoT Muh.'], grad: ['Gomulu Sistemler MSc', 'EE MSc'] },
-  ee_signal:      { jobs: ['DSP Muh.', 'Sinyal Isleme Uzm.', 'Ses/Goruntu Isleme Muh.'], grad: ['Sinyal Isleme MSc/PhD', 'EE MSc'] },
-  ee_control:     { jobs: ['Kontrol Sistemleri Muh.', 'Otomasyon Muh.', 'Guc Elektroniği Uzm.'], grad: ['Kontrol Teorisi MSc/PhD', 'EE MSc'] },
-  ee_power:       { jobs: ['Guc Sistemleri Muh.', 'Enerji Sektoru Danismani', 'Elektrik Dagitim Uzm.'], grad: ['Guc Sistemleri MSc', 'Enerji Muh. MSc'] },
-  ee_ai_hardware: { jobs: ['AI Chip Gelistirici', 'FPGA Muh.', 'Edge AI Uzmani'], grad: ['EE/CS MSc (AI odakli)', 'Computer Architecture PhD'] },
+  ai_nlp:         { jobs: ['NLP Muhendisi', 'LLM Uygulama Muhendisi', 'ML Arastirma Muhendisi', 'AI Urun Yoneticisi'], grad: ['CS MSc (NLP)', 'Yapay Zeka MSc', 'Hesaplamali Dilbilim MSc', 'Yapay Zeka PhD'] },
+  ai_cv:          { jobs: ['Computer Vision Muhendisi', 'Goruntu Isleme Uzmani', 'Algilama/Otonomi Muhendisi', 'Medikal Goruntuleme Uzmani'], grad: ['Computer Vision MSc', 'Robotik MSc', 'EE MSc', 'Computer Vision PhD'] },
+  fullstack:      { jobs: ['Full Stack Gelistirici', 'Backend Muhendisi', 'Frontend Muhendisi', 'Urun Odakli Yazilim Muhendisi'], grad: ['Yazilim Muhendisligi MSc', 'CS MSc', 'MBA (Teknoloji)'] },
+  crypto:         { jobs: ['Siber Guvenlik Muhendisi', 'Kriptografi Arastirma Muhendisi', 'Guvenlik Analisti', 'Blockchain Guvenlik Gelistiricisi'], grad: ['Siber Guvenlik MSc', 'Bilgi Guvenligi MSc', 'Kriptografi PhD'] },
+  data_eng:       { jobs: ['Veri Muhendisi', 'MLOps Muhendisi', 'Data Platform Muhendisi', 'Analitik Muhendisi'], grad: ['Veri Bilimi MSc', 'CS MSc', 'Bilgi Sistemleri MSc', 'Veri Muhendisligi PhD'] },
+  control_cs:     { jobs: ['Kontrol Sistemleri Muhendisi', 'Robotik Yazilim Muhendisi', 'Otomasyon Muhendisi', 'Mekatronik Gelistirici'], grad: ['Kontrol Teorisi MSc', 'Robotik MSc', 'Mekatronik MSc', 'Robotik PhD'] },
+  ie_analytics:   { jobs: ['Veri Analisti', 'Is Zekasi Uzmani', 'Analitik Danisman', 'Fintech Analisti'], grad: ['Endustri Muh. MSc', 'Veri Bilimi MSc', 'Is Analitigi MSc', 'Yoneylem Arastirmasi PhD'] },
+  ie_optimization:{ jobs: ['Operasyon Arastirmasi Uzmani', 'Optimizasyon Muhendisi', 'Karar Destek Uzmani', 'Planlama Muhendisi'], grad: ['Yoneylem Arastirmasi MSc', 'Endustri Muh. MSc', 'OR PhD'] },
+  ie_supply:      { jobs: ['Tedarik Zinciri Analisti', 'Lojistik Planlama Uzmani', 'Operasyon Yoneticisi', 'Satinalma Analisti'], grad: ['Supply Chain MSc', 'MBA (Operations)', 'Endustri Muh. MSc'] },
+  ie_control:     { jobs: ['Otomasyon Muhendisi', 'Proses Kontrol Uzmani', 'Endustriyel IoT Muhendisi'], grad: ['Kontrol Muh. MSc', 'Mekatronik MSc', 'Kontrol PhD'] },
+  ie_product:     { jobs: ['Urun Yoneticisi', 'Teknik Proje Yoneticisi', 'Is Gelistirme Uzmani', 'Strateji Danismani'], grad: ['MBA', 'Urun Yonetimi MSc', 'Isletme MSc'] },
+  me_control:     { jobs: ['Kontrol Sistemleri Muhendisi', 'Surec Muhendisi', 'Otomasyon Uzmani'], grad: ['Kontrol Teorisi MSc', 'Makine Muh. MSc', 'Kontrol PhD'] },
+  me_robotics:    { jobs: ['Robotik Muhendisi', 'Mekatronik Muhendisi', 'Otonom Sistem Muhendisi'], grad: ['Robotik MSc', 'Mekatronik MSc', 'Makine Muh. MSc', 'Robotik PhD'] },
+  me_energy:      { jobs: ['Enerji Muhendisi', 'Termal Sistem Muhendisi', 'Yenilenebilir Enerji Uzmani'], grad: ['Enerji Sistemleri MSc', 'Makine Muh. MSc (Termal)', 'Enerji PhD'] },
+  me_design:      { jobs: ['Mekanik Tasarim Muhendisi', 'Urun Gelistirme Muhendisi', 'CAD/CAM Uzmani'], grad: ['Makine Muh. MSc (Tasarim)', 'Urun Tasarimi MSc'] },
+  me_manufacturing:{ jobs: ['Uretim Muhendisi', 'Kalite Guvence Uzmani', 'Proses Iyilestirme Muhendisi'], grad: ['Imalat Muh. MSc', 'Endustri Muh. MSc'] },
+  ee_embedded:    { jobs: ['Gomulu Sistemler Muhendisi', 'Firmware Muhendisi', 'IoT Muhendisi'], grad: ['Gomulu Sistemler MSc', 'EE MSc', 'Gomulu Sistemler PhD'] },
+  ee_signal:      { jobs: ['DSP Muhendisi', 'Sinyal Isleme Uzmani', 'Goruntu/Ses Isleme Muhendisi'], grad: ['Sinyal Isleme MSc', 'EE MSc', 'DSP PhD'] },
+  ee_control:     { jobs: ['Kontrol Muhendisi', 'Otomasyon Muhendisi', 'Sistem Modelleme Uzmani'], grad: ['Kontrol Teorisi MSc', 'EE MSc', 'Kontrol PhD'] },
+  ee_power:       { jobs: ['Guc Sistemleri Muhendisi', 'Enerji Sistemleri Danismani', 'Elektrik Dagitim Uzmani'], grad: ['Guc Sistemleri MSc', 'Enerji Muh. MSc', 'Power Systems PhD'] },
+  ee_ai_hardware: { jobs: ['Edge AI Muhendisi', 'FPGA Muhendisi', 'AI Donanim Gelistiricisi'], grad: ['EE/CS MSc (AI Donanim)', 'Computer Architecture MSc', 'Hardware for AI PhD'] },
   ai_general:     { jobs: ['ML Muh.', 'Veri Bilimcisi', 'AI Arastirmacisi', 'AI PM'], grad: ['Yapay Zeka MSc/PhD', 'Veri Bilimi MSc', 'CS MSc'] },
   product:        { jobs: ['Urun Yoneticisi', 'Growth Analisti', 'Startup Kurucusu', 'Dijital Strateji Danismani'], grad: ['MBA', 'Urun Yonetimi MSc', 'Teknoloji Yonetimi MSc'] },
   systems:        { jobs: ['Platform Muh.', 'Site Reliability Eng.', 'DevOps Muh.', 'Altyapi Mimari'], grad: ['Dagitik Sistemler MSc', 'CS MSc'] },
@@ -298,10 +298,11 @@ const PROFILE_OPTIONS = [
 ]
 
 const MAJOR_CORE_HINTS: Record<string, string[]> = {
-  CS:  ['CS201', 'CS204', 'CS300', 'CS301', 'CS303', 'CS306', 'CS308', 'CS395', 'ENS491', 'ENS492', 'MATH203', 'MATH204', 'MATH212', 'PHYS113'],
-  IE:  ['MATH203', 'MATH204', 'ENS211'],
-  EE:  ['MATH203', 'MATH212', 'PHYS113', 'EE202'],
-  ME:  ['MATH203', 'MATH212', 'PHYS113', 'ME301'],
+  CS:  ['IF100', 'CS201', 'CS204', 'CS300', 'CS301', 'CS306', 'MATH203', 'MATH204', 'ENS491', 'ENS492'],
+  IE:  ['IF100', 'MATH203', 'MATH204', 'IE305', 'IE311'],
+  EE:  ['IF100', 'MATH203', 'MATH212', 'EE302', 'EE311'],
+  ME:  ['IF100', 'MATH203', 'MATH212', 'ME301', 'ME302'],
+  BIO: ['IF100', 'BIO301', 'BIO303', 'BIO321', 'BIO332'],
 }
 
 const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
@@ -383,11 +384,8 @@ async function streamText(text: string, onChunk: (c: string) => void) {
 
 export function ChatWindow() {
   const {
-    sessions,
     activeSessionId,
     newSession,
-    switchSession,
-    deleteSession,
     messages,
     isStreaming,
     addMessage,
@@ -401,6 +399,7 @@ export function ChatWindow() {
   const [input, setInput] = useState('')
   const [wizard, setWizard] = useState<WizardData>(INITIAL_WIZARD)
   const [showPanel, setShowPanel] = useState(false)
+  const [coursePanelCategory, setCoursePanelCategory] = useState<'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'>('all')
   const [courseMap, setCourseMap] = useState<Map<string, Course>>(new Map())
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -411,11 +410,6 @@ export function ChatWindow() {
   useEffect(() => {
     if (!activeSessionId) newSession()
   }, [activeSessionId, newSession])
-
-  const sortedSessions = useMemo(
-    () => [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-    [sessions],
-  )
 
   const hydrateCourses = useCallback(async (codes: string[]) => {
     if (!token || codes.length === 0) return courseMap
@@ -445,6 +439,7 @@ export function ChatWindow() {
 
     const totalCompleted = Number(payload.totalCompletedEcts ?? payload.completedEcts ?? 0)
     const totalRequired  = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 136)
+    const remainingSu    = Math.max(0, totalRequired - totalCompleted)
     const estimated      = Number(payload.estimatedSemestersLeft ?? payload.estimatedSemesters ?? 0)
 
     const missingCodesFromCategories = categories.flatMap((c) => c.missingCourses)
@@ -471,9 +466,10 @@ export function ChatWindow() {
       ? missingCodes.map((code) => shortCourse(code, map)).join('\n')
       : 'Eksik ders listesi bulunamadi.'
 
-    return `## Mezuniyet Durumu — ${major}
+return `## Mezuniyet Durumu — ${major}
 
 Toplam: **${totalCompleted}/${totalRequired} SU Kredi**
+Kalan: **${remainingSu} SU Kredi**
 
 ### Kategori Bazli Kalanlar
 ${categoryLines}
@@ -553,11 +549,11 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
         : 'Bu alan icin onerilen derslerin cogu tamam.'
 
       const jobSection = career?.jobs?.length
-        ? `\n\n**Kariyer firsatlari:** ${career.jobs.join(' · ')}`
+        ? `\n\n**Calisabilecegin roller:**\n${career.jobs.map((j, i) => `${i + 1}. ${j}`).join('\n')}`
         : ''
 
       const gradSection = career?.grad?.length
-        ? `\n**Yuksek lisans / Doktora:** ${career.grad.join(' · ')}`
+        ? `\n\n**Yuksek lisans / doktora yonleri:**\n${career.grad.map((g, i) => `${i + 1}. ${g}`).join('\n')}`
         : ''
 
       return `### ${track.label}\nTamamlanma: **%${pct}** (${done}/${total} ders)\n${track.description}\n\n${courseSection}${jobSection}${gradSection}`
@@ -607,6 +603,7 @@ ${sections.join('\n\n')}`
     } else {
       addMessage({ role: 'assistant', content: 'Aldigin dersleri sec, mezuniyet durumunu hesaplayalim.', isWizard: true })
       setWizard({ ...INITIAL_WIZARD, type: 'graduation', step: 'course-select', major })
+      setCoursePanelCategory('all')
       setShowPanel(true)
     }
   }, [isStreaming, authMajor, isComplete, selectedCourses.length, addMessage, runGraduationAnalysis])
@@ -646,6 +643,7 @@ ${sections.join('\n\n')}`
         } else {
           addMessage({ role: 'assistant', content: 'Once aldigin dersleri secelim, sonra alan seceriz.', isWizard: true })
           setWizard((w) => ({ ...w, major: selectedMajor, step: 'course-select' }))
+          setCoursePanelCategory('all')
           setShowPanel(true)
         }
         return
@@ -786,27 +784,6 @@ ${sections.join('\n\n')}`
 
   return (
     <div className="flex h-full gap-3">
-      {/* Sessions sidebar — hidden when course panel is open (avoids cramping) */}
-      {!showPanel && (
-        <div className="hidden lg:flex w-64 glass rounded-[22px] p-3 flex-col gap-2 shrink-0">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-white/40 uppercase tracking-widest">Gecmis</p>
-            <button onClick={newSession} className="text-xs px-2 py-1 rounded-lg bg-su-500/30 text-su-300">+ Yeni</button>
-          </div>
-          <div className="flex-1 overflow-y-auto flex flex-col gap-1.5">
-            {sortedSessions.map((s) => (
-              <div key={s.id} className={cn('rounded-xl p-2 border transition-all', s.id === activeSessionId ? 'border-su-300/40 bg-su-500/15' : 'border-white/8 bg-white/4')}>
-                <button className="w-full text-left" onClick={() => switchSession(s.id)}>
-                  <p className="text-xs text-white truncate">{s.title}</p>
-                  <p className="text-[10px] text-white/35">{new Date(s.updatedAt).toLocaleString('tr-TR')}</p>
-                </button>
-                <button onClick={() => deleteSession(s.id)} className="text-[10px] text-white/25 hover:text-red-300 mt-1">sil</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Main chat area */}
       <div className="flex flex-col flex-1 glass rounded-[28px] overflow-hidden min-w-0">
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
@@ -838,7 +815,10 @@ ${sections.join('\n\n')}`
             {wizard.step === 'course-select' && !showPanel && (
               <WizardCard key="coursePrompt">
                 <p className="text-xs text-white/50 mb-2">Ders panelini acip aldigin dersleri sec.</p>
-                <button onClick={() => setShowPanel(true)}
+                <button onClick={() => {
+                  setCoursePanelCategory('all')
+                  setShowPanel(true)
+                }}
                   className="text-xs px-3 py-1.5 rounded-xl bg-su-500/20 border border-su-300/30 text-su-300 hover:bg-su-500/30">
                   Paneli ac
                 </button>
@@ -932,8 +912,32 @@ ${sections.join('\n\n')}`
               addMessage({ role: 'user', content: 'Hangi alanda ilerlemeliyim?' })
               startPathWizard()
             }} disabled={isStreaming} />
-            <button onClick={() => setShowPanel(true)} className="text-xs text-white/40 hover:text-white/80 px-2">
+            <button
+              onClick={() => {
+                setCoursePanelCategory('all')
+                setShowPanel(true)
+              }}
+              className="text-xs text-white/40 hover:text-white/80 px-2"
+            >
               Derslerimi Guncelle
+            </button>
+            <button
+              onClick={() => {
+                setCoursePanelCategory('core')
+                setShowPanel(true)
+              }}
+              className="text-xs text-white/40 hover:text-white/80 px-2"
+            >
+              Core Derslerimi Degistir
+            </button>
+            <button
+              onClick={() => {
+                setCoursePanelCategory('free')
+                setShowPanel(true)
+              }}
+              className="text-xs text-white/40 hover:text-white/80 px-2"
+            >
+              Serbest Derslerimi Degistir
             </button>
             <button onClick={clearMessages} className="text-xs text-white/30 hover:text-white/60 px-2">
               Temizle
@@ -978,14 +982,40 @@ ${sections.join('\n\n')}`
             animate={{ opacity: 1, width: 380 }}
             exit={{ opacity: 0, width: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="shrink-0 glass rounded-[28px] overflow-hidden flex flex-col"
+            className="hidden md:flex shrink-0 glass rounded-[28px] overflow-hidden flex-col"
             style={{ minWidth: 0 }}
           >
             <CourseSelector
               initialMajor={wizard.major || authMajor}
+              initialCategory={coursePanelCategory}
               onSave={() => handleWizardSelect({ coursesDone: true })}
               onClose={() => setShowPanel(false)}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showPanel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 md:hidden bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="absolute inset-x-2 bottom-2 top-14 glass rounded-[24px] overflow-hidden"
+            >
+              <CourseSelector
+                initialMajor={wizard.major || authMajor}
+                initialCategory={coursePanelCategory}
+                onSave={() => handleWizardSelect({ coursesDone: true })}
+                onClose={() => setShowPanel(false)}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

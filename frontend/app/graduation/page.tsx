@@ -56,19 +56,6 @@ function GraduationContent() {
     return status.categories ?? {}
   }, [status])
 
-  const normalizedPaths = useMemo(() => {
-    if (!status) return {}
-    if (status.pathProgresses?.length) {
-      return Object.fromEntries(
-        status.pathProgresses.map((p) => [p.pathId, {
-          name: p.pathName,
-          completionPct: p.completionPct,
-        }])
-      )
-    }
-    return status.paths ?? {}
-  }, [status])
-
   const completed = (status?.totalCompletedEcts ?? status?.completedEcts ?? 0)
   const total     = (status?.totalRequiredEcts   ?? status?.totalEcts   ?? 136)
   const totalPct  = total > 0 ? Math.round((completed / total) * 100) : 0
@@ -149,30 +136,12 @@ function GraduationContent() {
           </GlassCard>
         )}
 
-        {/* Path seçici */}
-        {Object.keys(normalizedPaths).length > 0 && (
-          <GlassCard>
-            <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Kariyer Yolları</p>
-            <div className="flex flex-col gap-3">
-              {Object.entries(normalizedPaths).map(([id, path]) => (
-                <div key={id} className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-white">{path.name}</span>
-                      <span className="text-su-300">%{Math.round(path.completionPct)}</span>
-                    </div>
-                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-su-500 rounded-full transition-all duration-700"
-                        style={{ width: `${path.completionPct}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-        )}
+        <GlassCard>
+          <p className="text-xs text-white/40 uppercase tracking-widest mb-2">Mezuniyet Ozeti</p>
+          <p className="text-sm text-white/70">
+            Mezuniyet icin kalan kredi: <span className="text-su-300 font-semibold">{Math.max(0, total - completed)} SU Kredi</span>
+          </p>
+        </GlassCard>
       </div>
     </div>
   )

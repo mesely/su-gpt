@@ -56,7 +56,7 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
               onChange={(e) => setMajor(e.target.value)}
               className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-su-300 transition-colors"
             >
-              {['CS', 'IF', 'EE', 'ME', 'IE', 'MAT', 'BIO'].map((m) => (
+              {['CS', 'EE', 'ME', 'IE', 'MAT', 'BIO', 'PSY'].map((m) => (
                 <option key={m} value={m} className="bg-su-900">{m}</option>
               ))}
             </select>

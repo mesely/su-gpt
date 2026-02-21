@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useChatStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 // ── SVG Icons (inline, no dep) ─────────────────────────────────────────────
@@ -98,6 +98,8 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { studentId, major, isAdmin, logout } = useAuthStore()
+  const { sessions, activeSessionId, newSession, switchSession, deleteSession } = useChatStore()
+  const sortedSessions = [...sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
   return (
     <aside
@@ -123,7 +125,7 @@ export function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 flex-1 px-2 py-3 overflow-y-auto">
+      <nav className="flex flex-col gap-0.5 px-2 py-3">
         {NAV.filter((n) => !n.adminOnly || isAdmin).map((item) => {
           const active = pathname === item.href
           return (
@@ -165,8 +167,64 @@ export function Sidebar({ collapsed, onToggle, onClose }: SidebarProps) {
         })}
       </nav>
 
+      {/* Chat history */}
+      <div className="flex-1 min-h-0 border-t border-white/8 px-2 py-2 overflow-y-auto">
+        {!collapsed && (
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[10px] text-white/35 uppercase tracking-widest">Chat Gecmisi</p>
+            <button
+              onClick={() => {
+                newSession()
+                onClose?.()
+              }}
+              className="text-[10px] px-2 py-1 rounded-lg bg-su-500/25 text-su-300 hover:bg-su-500/35"
+            >
+              + Yeni
+            </button>
+          </div>
+        )}
+
+        {!collapsed && (
+          <div className="flex flex-col gap-1">
+            {sortedSessions.slice(0, 20).map((session) => {
+              const isActive = session.id === activeSessionId && pathname === '/'
+              return (
+                <div
+                  key={session.id}
+                  className={cn(
+                    'rounded-xl border px-2 py-1.5',
+                    isActive ? 'border-su-300/40 bg-su-500/20' : 'border-white/8 bg-white/5',
+                  )}
+                >
+                  <Link
+                    href="/"
+                    onClick={() => {
+                      switchSession(session.id)
+                      onClose?.()
+                    }}
+                    className="block w-full text-left"
+                  >
+                    <p className="text-[11px] text-white truncate">{session.title}</p>
+                    <p className="text-[10px] text-white/35">{new Date(session.updatedAt).toLocaleString('tr-TR')}</p>
+                  </Link>
+                  <button
+                    onClick={() => deleteSession(session.id)}
+                    className="mt-1 text-[10px] text-white/30 hover:text-red-300"
+                  >
+                    sil
+                  </button>
+                </div>
+              )
+            })}
+            {sortedSessions.length === 0 && (
+              <p className="text-[11px] text-white/30 px-1 py-2">Henuz sohbet yok.</p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* User info */}
-      <div className="border-t border-white/8 px-2 py-3">
+      <div className="border-t border-white/8 px-2 py-3 shrink-0">
         {studentId ? (
           <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
             <div className="w-7 h-7 rounded-full bg-su-500/30 border border-su-300/30 flex items-center justify-center shrink-0 text-su-300">

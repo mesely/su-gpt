@@ -10,16 +10,23 @@ const PREFIXES = ['ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'HIST', 'TLL', 'A
 
 interface CourseSelectorProps {
   initialMajor?: string
+  initialCategory?: 'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'
   onSave: (codes: string[]) => void
   onClose: () => void
 }
 
-export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseSelectorProps) {
+export function CourseSelector({
+  initialMajor = 'CS',
+  initialCategory = 'all',
+  onSave,
+  onClose,
+}: CourseSelectorProps) {
   const { token } = useAuthStore()
   const { selectedCourses, toggleCourse } = useCourseSelectionStore()
   const initialPrefix = initialMajor === 'MAT' ? 'MATH' : initialMajor
 
   const [activePrefix, setActivePrefix] = useState(initialPrefix)
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'>(initialCategory)
   const [courses, setCourses]           = useState<Course[]>([])
   const [loading, setLoading]           = useState(false)
   const [searchQ, setSearchQ]           = useState('')
@@ -50,6 +57,7 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
   }, [token, activePrefix, searchQ])
 
   useEffect(() => { fetchCourses() }, [fetchCourses])
+  useEffect(() => { setCategoryFilter(initialCategory) }, [initialCategory])
 
   function codePrefix(fullCode: string) {
     const m = fullCode.match(/^[A-Z]+/)
@@ -58,6 +66,13 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
 
   const filtered = courses.filter((c) => {
     if (activePrefix !== 'ALL' && codePrefix(c.fullCode) !== activePrefix) return false
+    if (categoryFilter !== 'all') {
+      if (categoryFilter === 'core' && !c.categories?.isCore) return false
+      if (categoryFilter === 'area' && !c.categories?.isArea) return false
+      if (categoryFilter === 'basicScience' && !c.categories?.isBasicScience) return false
+      if (categoryFilter === 'free' && c.elType !== 'free') return false
+      if (categoryFilter === 'university' && c.elType !== 'university') return false
+    }
     if (!searchQ) return true
     const q = searchQ.toLowerCase()
     return c.fullCode.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
@@ -105,6 +120,27 @@ export function CourseSelector({ initialMajor = 'CS', onSave, onClose }: CourseS
 
       {/* Search */}
       <div className="px-3 py-2 shrink-0">
+        <div className="mb-2 flex flex-wrap gap-1">
+          {[
+            { key: 'all', label: 'Tumleri' },
+            { key: 'core', label: 'Core' },
+            { key: 'area', label: 'Area' },
+            { key: 'basicScience', label: 'Temel Bilim' },
+            { key: 'free', label: 'Serbest' },
+            { key: 'university', label: 'Universite' },
+          ].map((cat) => (
+            <button
+              key={cat.key}
+              onClick={() => setCategoryFilter(cat.key as typeof categoryFilter)}
+              className={cn(
+                'rounded-lg px-2 py-1 text-[10px] transition-colors',
+                categoryFilter === cat.key ? 'bg-su-500/35 text-white' : 'bg-white/5 text-white/55 hover:text-white',
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
         <input type="text" value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
           placeholder="Ders ara..."
           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-su-300" />
