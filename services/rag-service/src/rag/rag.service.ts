@@ -481,13 +481,15 @@ export class RagService {
       throw new Error('GEMINI_API_KEY tanımlı değil');
     }
 
-    const models = Array.from(new Set([
+    const preferred = Array.from(new Set([
       this.model,
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
       'gemini-1.5-flash',
     ]));
-    const versions = ['v1beta', 'v1'];
+    const discovered = await this.discoverGeminiModels('generateContent');
+    const models = Array.from(new Set([...preferred, ...discovered]));
+    const versions = ['v1beta'];
     let data: GeminiGenerateResponse | null = null;
     let lastError = '';
 
@@ -498,14 +500,10 @@ export class RagService {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            systemInstruction: {
-              role: 'system',
-              parts: [{ text: systemPrompt }],
-            },
             contents: [
               {
                 role: 'user',
-                parts: [{ text: question }],
+                parts: [{ text: `${systemPrompt}\n\nSoru: ${question}` }],
               },
             ],
             generationConfig: {
@@ -560,6 +558,24 @@ export class RagService {
       contextType,
     });
     subject.complete();
+  }
+
+  private async discoverGeminiModels(method: 'generateContent' | 'embedContent') {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.geminiApiKey}`;
+      const res = await fetch(endpoint);
+      if (!res.ok) return [] as string[];
+      const data = (await res.json()) as {
+        models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+      };
+      const names = (data.models ?? [])
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes(method))
+        .map((m) => String(m.name ?? '').replace(/^models\//, ''))
+        .filter((x) => x.length > 0);
+      return names;
+    } catch {
+      return [] as string[];
+    }
   }
 
   // ─── Benzer chunk ara ─────────────────────────────────────────────────────

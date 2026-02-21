@@ -15,6 +15,8 @@ function categoryBadge(c: Course['categories']) {
 }
 
 export function CourseCard({ course, index = 0 }: CourseCardProps) {
+  const instructors = Array.isArray(course.instructors) ? course.instructors : []
+  const categories = course.categories ?? { isCore: false, isArea: false, isBasicScience: false }
   return (
     <motion.div
       className="glass glass-hover rounded-2xl p-3 flex flex-col gap-1.5"
@@ -28,9 +30,9 @@ export function CourseCard({ course, index = 0 }: CourseCardProps) {
       </div>
       <p className="text-xs text-white/80 leading-snug line-clamp-2">{course.name}</p>
       <div className="flex items-center gap-1 flex-wrap mt-0.5">
-        {categoryBadge(course.categories)}
-        {course.instructors[0] && (
-          <span className="text-xs text-white/40">{course.instructors[0]}</span>
+        {categoryBadge(categories)}
+        {instructors[0] && (
+          <span className="text-xs text-white/40">{instructors[0]}</span>
         )}
       </div>
     </motion.div>

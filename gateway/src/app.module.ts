@@ -8,6 +8,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { MockSsoController } from './auth/mock-sso.controller';
 
 import { CoursesController } from './courses/courses.controller';
+import { SelectionsController } from './courses/selections.controller';
 import { RagController } from './rag/rag.controller';
 import { InstructorController } from './instructor/instructor.controller';
 import { AdminWhatsappController } from './instructor/admin-whatsapp.controller';
@@ -31,6 +32,7 @@ import { AdminExamController } from './exam/admin-exam.controller';
   controllers: [
     MockSsoController,
     CoursesController,
+    SelectionsController,
     RagController,
     InstructorController,
     AdminWhatsappController,

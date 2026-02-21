@@ -12,10 +12,7 @@ const PREFIXES = [
   'CHEM', 'PHYS', 'DSA', 'PROJ', 'CIP', 'ANTH', 'CONF', 'CULT',
 ]
 
-const PREFIX_ALIASES: Record<string, string[]> = {
-  MATH: ['MATH', 'MAT'],
-  MAT: ['MAT', 'MATH'],
-}
+const PREFIX_ALIASES: Record<string, string[]> = {}
 
 interface CourseSelectorProps {
   initialMajor?: string
@@ -27,9 +24,7 @@ interface CourseSelectorProps {
 function normalizeMajorPrefix(raw: string): string {
   const token = String(raw ?? '').toUpperCase().trim()
   const m = token.match(/[A-Z]{2,6}/)
-  const parsed = (m?.[0] ?? 'CS').toUpperCase()
-  if (parsed === 'MAT') return 'MATH'
-  return parsed
+  return (m?.[0] ?? 'CS').toUpperCase()
 }
 
 function normalizeCourse(raw: Record<string, unknown>): Course {

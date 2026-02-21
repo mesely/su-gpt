@@ -73,8 +73,8 @@ export class GraduationService {
     const pathProgresses = req?.paths ? this.computePathProgress(req.paths, completedCodes) : [];
     const totalRequiredEcts = req?.totalCredit ?? DEFAULT_TOTAL_CREDIT;
     const remaining = Math.max(0, totalRequiredEcts - totalCompletedEcts);
-    const avgCreditsPerSemester = 18;
-    const estimatedSemestersLeft = Math.ceil(remaining / avgCreditsPerSemester);
+    const avgCreditsPerSemester = 15;
+    const estimatedSemestersLeft = Math.max(0, Math.round(remaining / avgCreditsPerSemester));
 
     return {
       studentId,

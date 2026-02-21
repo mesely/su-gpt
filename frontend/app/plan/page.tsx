@@ -5,7 +5,7 @@ import { LoginGate } from '@/components/LoginGate'
 import { SemesterTable } from '@/components/plan/SemesterTable'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { Spinner } from '@/components/ui/Spinner'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useCourseSelectionStore } from '@/lib/store'
 import { api, Course } from '@/lib/api'
 
 interface Semester { number: number; courses: Course[]; totalEcts: number }
@@ -27,7 +27,9 @@ function buildDemoSemesters(courses: Course[]): Semester[] {
 
 function PlanContent() {
   const { token, studentId, major } = useAuthStore()
+  const { inProgressCourses, acceptInProgressCourse, acceptAllInProgress } = useCourseSelectionStore()
   const [semesters, setSemesters] = useState<Semester[]>([])
+  const [inProgressCourseRows, setInProgressCourseRows] = useState<Course[]>([])
   const [totalEcts, setTotalEcts] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -44,6 +46,27 @@ function PlanContent() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [token, studentId, major])
+
+  useEffect(() => {
+    if (!token || inProgressCourses.length === 0) {
+      setInProgressCourseRows([])
+      return
+    }
+    let cancelled = false
+    Promise.all(
+      inProgressCourses.map(async (code) => {
+        try {
+          return await api.getCourse(token, code)
+        } catch {
+          return null
+        }
+      }),
+    ).then((rows) => {
+      if (cancelled) return
+      setInProgressCourseRows(rows.filter(Boolean) as Course[])
+    })
+    return () => { cancelled = true }
+  }, [token, inProgressCourses])
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="w-8 h-8" /></div>
   if (error)   return <p className="text-red-400 text-sm">{error}</p>
@@ -72,6 +95,42 @@ function PlanContent() {
       </GlassCard>
 
       <SemesterTable semesters={semesters} />
+
+      <GlassCard className="py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm text-white/60">Chat Onerileri</p>
+            <p className="text-base font-semibold text-white">In Progress Dersler</p>
+          </div>
+          <button
+            onClick={() => acceptAllInProgress()}
+            disabled={inProgressCourseRows.length === 0}
+            className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300 disabled:opacity-40"
+          >
+            Tumunu Kabul Et
+          </button>
+        </div>
+        {inProgressCourseRows.length === 0 ? (
+          <p className="text-xs text-white/40">Chatten gelen aktif ders onerisi bulunmuyor.</p>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-2">
+            {inProgressCourseRows.map((c) => (
+              <div key={c.fullCode} className="glass rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-su-300">{c.fullCode}</p>
+                  <p className="text-xs text-white/80 truncate">{c.name}</p>
+                </div>
+                <button
+                  onClick={() => acceptInProgressCourse(c.fullCode)}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                >
+                  Kabul Et
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
     </div>
   )
 }

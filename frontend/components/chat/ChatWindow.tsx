@@ -509,7 +509,16 @@ export function ChatWindow() {
     clearMessages,
   } = useChatStore()
   const { token, studentId, major: authMajor } = useAuthStore()
-  const { selectedCourses, isComplete, markComplete } = useCourseSelectionStore()
+  const {
+    selectedCourses,
+    isComplete,
+    inProgressCourses,
+    lastPlanMajor,
+    lastPlanDifficulty,
+    markComplete,
+    setInProgressPlan,
+    syncFromServer,
+  } = useCourseSelectionStore()
 
   const [input, setInput] = useState('')
   const [wizard, setWizard] = useState<WizardData>(INITIAL_WIZARD)
@@ -525,6 +534,32 @@ export function ChatWindow() {
   useEffect(() => {
     if (!activeSessionId) newSession()
   }, [activeSessionId, newSession])
+
+  useEffect(() => {
+    if (!token || !studentId) return
+    let cancelled = false
+    void api.getSelections(token)
+      .then((data) => {
+        if (cancelled) return
+        syncFromServer(data)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [token, studentId, syncFromServer])
+
+  useEffect(() => {
+    if (!token || !studentId) return
+    const timer = setTimeout(() => {
+      void api.saveSelections(token, {
+        selectedCourses,
+        isComplete,
+        inProgressCourses,
+        lastPlanMajor,
+        lastPlanDifficulty,
+      }).catch(() => {})
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [token, studentId, selectedCourses, isComplete, inProgressCourses, lastPlanMajor, lastPlanDifficulty])
 
   const hydrateCourses = useCallback(async (codes: string[]) => {
     if (!token || codes.length === 0) return courseMap
@@ -637,6 +672,7 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
     const trackNeed = trackCourses.filter((c) => !selectedCourses.includes(c))
     const helper = SUPPORTER_COURSES[difficulty]
     const rawCandidates = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
+      .filter((c) => !selectedCourses.includes(c))
       .filter((c) => courseLevel(c) >= 2)
     const map = await hydrateCourses(rawCandidates)
     const completedSet = new Set(selectedCourses.map((c) => c.toUpperCase()))
@@ -674,16 +710,27 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
       return `${shortCourse(code, map)} · Zorluk: **${diff}/10** · Onkosul: ${prereq}`
     })
 
-    return `## Bu Donem Ne Almaliyim? — ${major}
+    const takenPreview = selectedCourses.length
+      ? selectedCourses.slice(0, 12).join(', ')
+      : 'Yok'
+
+    return {
+      text: `## Bu Donem Ne Almaliyim? — ${major}
 
 Oneri odagi: **${trackLabel || 'Dengeli'}** · Zorluk: **${difficulty}**
 
 ${lines.join('\n')}
 
+### Dikkate Alinan Aldigin Dersler
+${takenPreview}
+
 Yol notu: ${tracks.length ? tracks.map((t) => t.description).join(' | ') : 'Dengeli ilerleme secildi.'}
 Seviye notu: 1xx dersler onerilmedi; 2xx, 3xx ve 4xx seviyeleri dengeli sekilde dagitildi.
 
 Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
+      ,
+      recommendedCodes: finalList,
+    }
   }, [hydrateCourses, selectedCourses, wizard.profileTags])
 
   const formatPathReply = useCallback(async (major: string, trackIds: string[], quizScores?: Record<string, number>) => {
@@ -694,11 +741,15 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
 
     const sections = tracks.map((track) => {
       const missing = track.courses.filter((c) => !selectedCourses.includes(c)).slice(0, 6)
+      const taken = track.courses.filter((c) => selectedCourses.includes(c)).slice(0, 6)
       const career  = TRACK_CAREER[track.id]
 
-      const courseSection = missing.length
-        ? `**Oncelikli dersler:**\n${missing.map((c) => shortCourse(c, map)).join('\n')}`
-        : 'Bu alan icin onerilen derslerin buyuk bolumu tamamlanmis gozukuyor.'
+      const missingSection = missing.length
+        ? `**Oncelikli dersler (almadigin):**\n${missing.map((c) => shortCourse(c, map)).join('\n')}`
+        : '**Oncelikli dersler (almadigin):**\n- Bu alan icin onerilen derslerin buyuk bolumu tamamlanmis gozukuyor.'
+      const takenSection = taken.length
+        ? `\n\n**Bu alanda aldigin dersler:**\n${taken.map((c) => shortCourse(c, map)).join('\n')}`
+        : ''
 
       const jobSection = career?.jobs?.length
         ? `\n\n**Calisabilecegin roller:**\n${career.jobs.map((j, i) => `${i + 1}. ${j}`).join('\n')}`
@@ -708,7 +759,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
         ? `\n\n**Yuksek lisans / doktora yonleri:**\n${career.grad.map((g, i) => `${i + 1}. ${g}`).join('\n')}`
         : ''
 
-      return `### ${track.label}\n${track.description}\n\nBu alan, verdigin cevaplara gore teknik ilgi ve calisma tarzina en uyumlu yollardan biri. Teorik/uygulamali dengesi, ders secimi ve kariyer ciktilari acisindan seni istikrarlı sekilde ileri tasir.\n\n${courseSection}${jobSection}${gradSection}`
+      return `### ${track.label}\n${track.description}\n\nBu alan, verdigin cevaplara gore teknik ilgi ve calisma tarzina en uyumlu yollardan biri. Teorik/uygulamali dengesi, ders secimi ve kariyer ciktilari acisindan seni istikrarlı sekilde ileri tasir.\n\n${missingSection}${takenSection}${jobSection}${gradSection}`
     })
 
     return `## Hangi Alanda Ilerlemeliyim?\n\nVerdigin cevaplari teknik ilgi, ders uyumu ve kariyer yonelimi ekseninde degerlendirerek en uygun alanlari tahmin ettim.\n\n${sections.join('\n\n')}`
@@ -761,6 +812,13 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
     const major = authMajor || ''
     if (major) {
       addMessage({ role: 'assistant', content: `Tamam. Bolumunu **${major}** kabul ederek devam ediyorum.`, isWizard: true })
+      if (lastPlanMajor === major && lastPlanDifficulty && inProgressCourses.length > 0) {
+        addMessage({
+          role: 'assistant',
+          content: `Bu donem icin daha once **${lastPlanDifficulty}** zorlukta ${inProgressCourses.length} ders onermistim. Istersen ayni plani revize edelim.`,
+          isWizard: true,
+        })
+      }
       if (isComplete && selectedCourses.length > 0) {
         setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'difficulty-select' })
       } else {
@@ -773,7 +831,16 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
     }
     addMessage({ role: 'assistant', content: 'Bu donem plani icin bolumunu secelim.', isWizard: true })
     setWizard({ ...INITIAL_WIZARD, type: 'plan', step: 'major-select' })
-  }, [isStreaming, addMessage, authMajor, isComplete, selectedCourses.length])
+  }, [
+    isStreaming,
+    addMessage,
+    authMajor,
+    inProgressCourses.length,
+    isComplete,
+    lastPlanDifficulty,
+    lastPlanMajor,
+    selectedCourses.length,
+  ])
 
   const startPathWizard = useCallback(() => {
     if (isStreaming) return
@@ -905,14 +972,15 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
     if (step === 'difficulty-select' && payload.difficulty) {
       addMessage({ role: 'user', content: payload.difficulty })
       setWizard((w) => ({ ...w, difficulty: payload.difficulty as Exclude<Difficulty, null>, step: 'sending' }))
-      const text = await formatPlanReply(major || authMajor, payload.difficulty)
-      await streamWizardReply(text)
+      const result = await formatPlanReply(major || authMajor, payload.difficulty)
+      setInProgressPlan(result.recommendedCodes, major || authMajor, payload.difficulty)
+      await streamWizardReply(result.text)
       setWizard(INITIAL_WIZARD)
     }
   }, [
     addMessage, authMajor, formatPathReply, formatPlanReply, isComplete,
-    isStreaming, markComplete, runGraduationAnalysis, selectedCourses.length,
-    streamWizardReply, wizard,
+    inProgressCourses.length, isStreaming, lastPlanDifficulty, lastPlanMajor, markComplete,
+    runGraduationAnalysis, selectedCourses.length, setInProgressPlan, streamWizardReply, wizard,
   ])
 
   const dispatchInput = useCallback((text: string) => {
@@ -920,6 +988,23 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
     if (!cleaned) return
 
     const lowered = cleaned.toLowerCase()
+    if (/(core derslerimi degistir|core dersleri degistir|core degistir)/i.test(lowered)) {
+      setCoursePanelCategory('core')
+      setShowPanel(true)
+      setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
+      addMessage({ role: 'user', content: cleaned })
+      addMessage({ role: 'assistant', content: 'Core ders secimini guncelle; sonra yeni plani tekrar olusturacagim.', isWizard: true })
+      return
+    }
+    if (/(free derslerimi degistir|serbest derslerimi degistir|free degistir)/i.test(lowered)) {
+      setCoursePanelCategory('free')
+      setShowPanel(true)
+      setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
+      addMessage({ role: 'user', content: cleaned })
+      addMessage({ role: 'assistant', content: 'Serbest ders secimini guncelle; sonra yeni plani tekrar olusturacagim.', isWizard: true })
+      return
+    }
+
     if (
       wizard.type === 'plan' &&
       wizard.step === 'course-select' &&
@@ -951,7 +1036,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
 
     setWizard(INITIAL_WIZARD)
     sendRag(cleaned)
-  }, [addMessage, handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
+  }, [addMessage, authMajor, handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -972,7 +1057,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
   return (
     <div className="flex h-full gap-3">
       {/* Main chat area */}
-      <div className="flex flex-col flex-1 glass rounded-[28px] overflow-hidden min-w-0">
+      <div className="flex flex-col flex-1 glass-ultra rounded-[28px] overflow-hidden min-w-0">
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           {messages.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-center text-white/50 text-sm">
@@ -1117,6 +1202,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
               onClick={() => {
                 setCoursePanelCategory('core')
                 setShowPanel(true)
+                setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
               }}
               className="text-xs text-white/40 hover:text-white/80 px-2"
             >
@@ -1126,6 +1212,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
               onClick={() => {
                 setCoursePanelCategory('free')
                 setShowPanel(true)
+                setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
               }}
               className="text-xs text-white/40 hover:text-white/80 px-2"
             >

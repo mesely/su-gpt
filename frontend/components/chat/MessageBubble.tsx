@@ -114,8 +114,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       <div className={cn(
         'rounded-2xl px-4 py-3 text-sm',
         isUser
-          ? 'bg-su-500/80 text-white rounded-tr-sm'
-          : 'glass text-white/80 rounded-tl-sm',
+          ? 'bg-[#0f3d76]/88 border border-[#7eb6ea]/35 text-white rounded-tr-sm'
+          : 'bg-white/16 border border-white/28 text-white/90 rounded-tl-sm',
       )}>
         {message.content
           ? (isUser

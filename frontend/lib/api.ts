@@ -150,6 +150,24 @@ export const api = {
     req<Exam>('POST', '/admin/exams', token, body),
   deleteExam: (token: string, id: string) =>
     req<{ success: boolean }>('DELETE', `/admin/exams/${id}`, token),
+
+  // Course selection persistence
+  getSelections: (token: string) =>
+    req<{
+      selectedCourses: string[]
+      isComplete: boolean
+      inProgressCourses: string[]
+      lastPlanMajor: string | null
+      lastPlanDifficulty: 'easy' | 'balanced' | 'hard' | null
+    }>('GET', '/selections/me', token),
+  saveSelections: (token: string, body: {
+    selectedCourses: string[]
+    isComplete: boolean
+    inProgressCourses: string[]
+    lastPlanMajor: string | null
+    lastPlanDifficulty: 'easy' | 'balanced' | 'hard' | null
+  }) =>
+    req<{ ok: boolean }>('PUT', '/selections/me', token, body),
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

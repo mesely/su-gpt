@@ -195,9 +195,23 @@ export const useChatStore = create<ChatState>()(
 interface CourseSelectionState {
   selectedCourses: string[]   // ["CS201", "CS301", ...]
   isComplete: boolean          // bir kere seçim yapıldı mı
+  inProgressCourses: string[]
+  lastPlanMajor: string | null
+  lastPlanDifficulty: 'easy' | 'balanced' | 'hard' | null
   toggleCourse: (code: string) => void
   setCourses: (codes: string[]) => void
   markComplete: () => void
+  setInProgressPlan: (codes: string[], major: string, difficulty: 'easy' | 'balanced' | 'hard') => void
+  acceptInProgressCourse: (code: string) => void
+  acceptAllInProgress: () => void
+  removeInProgressCourse: (code: string) => void
+  syncFromServer: (payload: {
+    selectedCourses?: string[]
+    isComplete?: boolean
+    inProgressCourses?: string[]
+    lastPlanMajor?: string | null
+    lastPlanDifficulty?: 'easy' | 'balanced' | 'hard' | null
+  }) => void
   reset: () => void
 }
 
@@ -206,6 +220,9 @@ export const useCourseSelectionStore = create<CourseSelectionState>()(
     (set) => ({
       selectedCourses: [],
       isComplete: false,
+      inProgressCourses: [],
+      lastPlanMajor: null,
+      lastPlanDifficulty: null,
       toggleCourse: (code) =>
         set((s) => ({
           selectedCourses: s.selectedCourses.includes(code)
@@ -214,7 +231,41 @@ export const useCourseSelectionStore = create<CourseSelectionState>()(
         })),
       setCourses: (codes) => set({ selectedCourses: codes }),
       markComplete: () => set({ isComplete: true }),
-      reset: () => set({ selectedCourses: [], isComplete: false }),
+      setInProgressPlan: (codes, major, difficulty) =>
+        set((s) => ({
+          inProgressCourses: Array.from(new Set(codes.filter((c) => !s.selectedCourses.includes(c)))),
+          lastPlanMajor: major,
+          lastPlanDifficulty: difficulty,
+        })),
+      acceptInProgressCourse: (code) =>
+        set((s) => ({
+          selectedCourses: s.selectedCourses.includes(code) ? s.selectedCourses : [...s.selectedCourses, code],
+          inProgressCourses: s.inProgressCourses.filter((c) => c !== code),
+          isComplete: true,
+        })),
+      acceptAllInProgress: () =>
+        set((s) => ({
+          selectedCourses: Array.from(new Set([...s.selectedCourses, ...s.inProgressCourses])),
+          inProgressCourses: [],
+          isComplete: true,
+        })),
+      removeInProgressCourse: (code) =>
+        set((s) => ({ inProgressCourses: s.inProgressCourses.filter((c) => c !== code) })),
+      syncFromServer: (payload) =>
+        set((s) => ({
+          selectedCourses: Array.isArray(payload.selectedCourses) ? payload.selectedCourses : s.selectedCourses,
+          isComplete: typeof payload.isComplete === 'boolean' ? payload.isComplete : s.isComplete,
+          inProgressCourses: Array.isArray(payload.inProgressCourses) ? payload.inProgressCourses : s.inProgressCourses,
+          lastPlanMajor: payload.lastPlanMajor ?? s.lastPlanMajor,
+          lastPlanDifficulty: payload.lastPlanDifficulty ?? s.lastPlanDifficulty,
+        })),
+      reset: () => set({
+        selectedCourses: [],
+        isComplete: false,
+        inProgressCourses: [],
+        lastPlanMajor: null,
+        lastPlanDifficulty: null,
+      }),
     }),
     { name: 'su-courses' },
   ),

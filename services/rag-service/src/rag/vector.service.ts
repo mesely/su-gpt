@@ -104,12 +104,14 @@ export class VectorService implements OnModuleInit {
     if (this.provider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error('GEMINI_API_KEY tanımlı değil');
-      const candidates = Array.from(new Set([
+      const preferred = Array.from(new Set([
         this.embedModel,
         'embedding-001',
         'text-embedding-004',
       ]));
-      const versions = ['v1beta', 'v1'];
+      const discovered = await this.discoverGeminiModels(apiKey, 'embedContent');
+      const candidates = Array.from(new Set([...preferred, ...discovered]));
+      const versions = ['v1beta'];
 
       let lastError = '';
       for (const version of versions) {
@@ -162,6 +164,23 @@ export class VectorService implements OnModuleInit {
 
     const data = (await res.json()) as { data: { embedding: number[] }[] };
     return data.data[0].embedding;
+  }
+
+  private async discoverGeminiModels(apiKey: string, method: 'embedContent'): Promise<string[]> {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+      const res = await fetch(endpoint);
+      if (!res.ok) return [];
+      const data = (await res.json()) as {
+        models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+      };
+      return (data.models ?? [])
+        .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes(method))
+        .map((m) => String(m.name ?? '').replace(/^models\//, ''))
+        .filter((x) => x.length > 0);
+    } catch {
+      return [];
+    }
   }
 
   // ─── Add documents ────────────────────────────────────────────────────────
