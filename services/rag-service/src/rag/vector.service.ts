@@ -47,7 +47,7 @@ export class VectorService implements OnModuleInit {
   private readonly provider = (process.env.LLM_PROVIDER ?? 'mistral').toLowerCase();
   private readonly embedModel =
     this.provider === 'gemini'
-      ? process.env.GEMINI_EMBED_MODEL ?? 'text-embedding-004'
+      ? process.env.GEMINI_EMBED_MODEL ?? 'embedding-001'
       : process.env.MISTRAL_EMBED_MODEL ?? 'mistral-embed';
   private EmbeddingCache: Model<EmbeddingCacheDoc>;
 
@@ -104,27 +104,40 @@ export class VectorService implements OnModuleInit {
     if (this.provider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error('GEMINI_API_KEY tanımlı değil');
+      const candidates = Array.from(new Set([
+        this.embedModel,
+        'embedding-001',
+        'text-embedding-004',
+      ]));
+      const versions = ['v1beta', 'v1'];
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.embedModel}:embedContent?key=${apiKey}`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: {
-            parts: [{ text }],
-          },
-        }),
-      });
+      let lastError = '';
+      for (const version of versions) {
+        for (const model of candidates) {
+          const endpoint = `https://generativelanguage.googleapis.com/${version}/models/${model}:embedContent?key=${apiKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: {
+                parts: [{ text }],
+              },
+            }),
+          });
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Gemini embed hatası: ${err}`);
+          if (!res.ok) {
+            lastError = await res.text();
+            continue;
+          }
+
+          const data = (await res.json()) as { embedding?: { values?: number[] } };
+          const values = data.embedding?.values ?? [];
+          if (values.length) return values;
+          lastError = 'Gemini embedding bos dondu';
+        }
       }
 
-      const data = (await res.json()) as { embedding?: { values?: number[] } };
-      const values = data.embedding?.values ?? [];
-      if (!values.length) throw new Error('Gemini embedding boş döndü');
-      return values;
+      throw new Error(`Gemini embed hatası: ${lastError}`);
     }
 
     const apiKey = process.env.MISTRAL_API_KEY;
@@ -175,7 +188,13 @@ export class VectorService implements OnModuleInit {
     topK = 8,
     filters?: Record<string, string>,
   ): Promise<SearchResult[]> {
-    const queryEmbedding = await this.embed(queryText);
+    let queryEmbedding: number[];
+    try {
+      queryEmbedding = await this.embed(queryText);
+    } catch (err) {
+      this.logger.warn(`Embedding üretilemedi, lexical fallback uygulanıyor: ${err instanceof Error ? err.message : String(err)}`);
+      return [];
+    }
 
     const body: Record<string, unknown> = {
       query_embeddings: [queryEmbedding],
@@ -189,10 +208,16 @@ export class VectorService implements OnModuleInit {
       );
     }
 
-    const result = (await this.chromaPost(
-      `/api/v1/collections/${collection}/query`,
-      body,
-    )) as ChromaQueryResult;
+    let result: ChromaQueryResult;
+    try {
+      result = (await this.chromaPost(
+        `/api/v1/collections/${collection}/query`,
+        body,
+      )) as ChromaQueryResult;
+    } catch (err) {
+      this.logger.warn(`Chroma query başarısız: ${err instanceof Error ? err.message : String(err)}`);
+      return [];
+    }
 
     const ids = result.ids?.[0] ?? [];
     const docs = result.documents?.[0] ?? [];

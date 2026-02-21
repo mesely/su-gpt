@@ -25,7 +25,7 @@ type WizardType = 'graduation' | 'plan' | 'path' | null
 type WizardStep =
   | 'major-select'
   | 'course-select'
-  | 'profile-select'
+  | 'path-quiz'
   | 'track-select'
   | 'difficulty-select'
   | 'sending'
@@ -39,6 +39,8 @@ interface WizardData {
   major: string
   selectedTracks: string[]
   profileTags: string[]
+  quizIndex: number
+  quizScores: Record<string, number>
   difficulty: Difficulty
 }
 
@@ -48,6 +50,8 @@ const INITIAL_WIZARD: WizardData = {
   major: '',
   selectedTracks: [],
   profileTags: [],
+  quizIndex: 0,
+  quizScores: {},
   difficulty: null,
 }
 
@@ -71,7 +75,7 @@ const COMMON_TRACKS: TrackOption[] = [
     id: 'product',
     label: 'Product & Analytics',
     description: 'Urun, metrik ve is odakli teknik yon.',
-    courses: ['IF100', 'ECON201', 'SPS303', 'CS306'],
+    courses: ['ECON201', 'SPS303', 'CS306', 'CS308'],
     tags: ['product', 'analysis', 'business'],
   },
   {
@@ -261,7 +265,7 @@ const TRACK_CAREER: Record<string, { jobs: string[]; grad: string[] }> = {
   ai_cv:          { jobs: ['Computer Vision Muhendisi', 'Goruntu Isleme Uzmani', 'Algilama/Otonomi Muhendisi', 'Medikal Goruntuleme Uzmani'], grad: ['Computer Vision MSc', 'Robotik MSc', 'EE MSc', 'Computer Vision PhD'] },
   fullstack:      { jobs: ['Full Stack Gelistirici', 'Backend Muhendisi', 'Frontend Muhendisi', 'Urun Odakli Yazilim Muhendisi'], grad: ['Yazilim Muhendisligi MSc', 'CS MSc', 'MBA (Teknoloji)'] },
   crypto:         { jobs: ['Siber Guvenlik Muhendisi', 'Kriptografi Arastirma Muhendisi', 'Guvenlik Analisti', 'Blockchain Guvenlik Gelistiricisi'], grad: ['Siber Guvenlik MSc', 'Bilgi Guvenligi MSc', 'Kriptografi PhD'] },
-  data_eng:       { jobs: ['Veri Muhendisi', 'MLOps Muhendisi', 'Data Platform Muhendisi', 'Analitik Muhendisi'], grad: ['Veri Bilimi MSc', 'CS MSc', 'Bilgi Sistemleri MSc', 'Veri Muhendisligi PhD'] },
+  data_eng:       { jobs: ['Veri Muhendisi', 'MLOps Muhendisi', 'Data Platform Muhendisi', 'Analitik Muhendisi'], grad: ['Veri Bilimi MSc', 'CS MSc', 'Veri Muhendisligi MSc', 'Veri Muhendisligi PhD'] },
   control_cs:     { jobs: ['Kontrol Sistemleri Muhendisi', 'Robotik Yazilim Muhendisi', 'Otomasyon Muhendisi', 'Mekatronik Gelistirici'], grad: ['Kontrol Teorisi MSc', 'Robotik MSc', 'Mekatronik MSc', 'Robotik PhD'] },
   ie_analytics:   { jobs: ['Veri Analisti', 'Is Zekasi Uzmani', 'Analitik Danisman', 'Fintech Analisti'], grad: ['Endustri Muh. MSc', 'Veri Bilimi MSc', 'Is Analitigi MSc', 'Yoneylem Arastirmasi PhD'] },
   ie_optimization:{ jobs: ['Operasyon Arastirmasi Uzmani', 'Optimizasyon Muhendisi', 'Karar Destek Uzmani', 'Planlama Muhendisi'], grad: ['Yoneylem Arastirmasi MSc', 'Endustri Muh. MSc', 'OR PhD'] },
@@ -297,12 +301,76 @@ const PROFILE_OPTIONS = [
   { id: 'business', label: 'Isletme/yonetim tarafi ilgimi cekiyor' },
 ]
 
+interface QuizOption {
+  label: string
+  tags: Record<string, number>
+}
+
+interface QuizQuestion {
+  id: string
+  text: string
+  options: QuizOption[]
+}
+
+const PATH_QUIZ_QUESTIONS: QuizQuestion[] = [
+  { id: 'q1', text: 'Hangi tip problemler seni daha cok motive ediyor?', options: [
+    { label: 'Veri, tahmin, modelleme', tags: { ml: 2, analysis: 2, math: 1 } },
+    { label: 'Sistem performansi ve altyapi', tags: { systems: 2, coding: 2 } },
+    { label: 'Insan/urun odakli cozumler', tags: { product: 2, design: 1, business: 1 } },
+  ]},
+  { id: 'q2', text: 'Bir derste en cok neye odaklanmak istersin?', options: [
+    { label: 'Matematiksel temel ve teori', tags: { math: 2, research: 1 } },
+    { label: 'Uygulama/proje gelistirme', tags: { coding: 2, systems: 1 } },
+    { label: 'Analiz, raporlama, karar', tags: { analysis: 2, business: 1 } },
+  ]},
+  { id: 'q3', text: 'Calisma stilin hangisine daha yakin?', options: [
+    { label: 'Teknik derinlik, uzun odak', tags: { research: 2, math: 1 } },
+    { label: 'Hizli prototipleme ve iterasyon', tags: { coding: 2, product: 1 } },
+    { label: 'Gorsel/anlatimsal dusunme', tags: { design: 2, product: 1 } },
+  ]},
+  { id: 'q4', text: 'Staj/ilk is icin hangi ekip daha cazip?', options: [
+    { label: 'AI / data science', tags: { ml: 3, analysis: 1 } },
+    { label: 'Backend / platform / devops', tags: { systems: 3, coding: 1 } },
+    { label: 'Urun / growth / strategy', tags: { product: 2, business: 2 } },
+  ]},
+  { id: 'q5', text: 'Zor bir problemi cozerken ilk adimin ne olur?', options: [
+    { label: 'Problemi formalize ederim', tags: { math: 2, analysis: 1 } },
+    { label: 'Calisan bir demo cikaririm', tags: { coding: 2, systems: 1 } },
+    { label: 'Kullaniciyi ve ihtiyaci netlerim', tags: { product: 2, design: 1 } },
+  ]},
+  { id: 'q6', text: 'Asagidaki ders grubundan hangisi seni daha cok ceker?', options: [
+    { label: 'ML, NLP, Deep Learning', tags: { ml: 3 } },
+    { label: 'OS, Distributed, Networks', tags: { systems: 3 } },
+    { label: 'HCI, Product, UX', tags: { product: 2, design: 2 } },
+  ]},
+  { id: 'q7', text: 'Gelecekte nasil bir rolde olmak istersin?', options: [
+    { label: 'Arastirma/uzman teknik rol', tags: { research: 2, ml: 1, math: 1 } },
+    { label: 'Muhendislik liderligi/tech lead', tags: { systems: 2, coding: 2 } },
+    { label: 'Urun liderligi/PM', tags: { product: 3, business: 1 } },
+  ]},
+  { id: 'q8', text: 'Donanim ve fiziksel sistemlerle aran nasil?', options: [
+    { label: 'Iyi, robotik/embedded severim', tags: { hardware: 3, systems: 1 } },
+    { label: 'Orta, gerektiginde calisirim', tags: { systems: 1, coding: 1 } },
+    { label: 'Daha cok yazilim/veri taraftayim', tags: { ml: 1, coding: 1, product: 1 } },
+  ]},
+  { id: 'q9', text: 'Belirsizlik oldugunda ne yaparsin?', options: [
+    { label: 'Hipotez ve olcum plani kurarim', tags: { analysis: 2, math: 1 } },
+    { label: 'Sistemi bolup teknik riski azaltirim', tags: { systems: 2, coding: 1 } },
+    { label: 'Paydaslari hizalayip yol haritasi cikaririm', tags: { product: 2, business: 1 } },
+  ]},
+  { id: 'q10', text: 'Seni en cok heyecanlandiran ciktı hangisi?', options: [
+    { label: 'Modelin performansini yukselttim', tags: { ml: 3 } },
+    { label: 'Sistem daha hizli/stabil oldu', tags: { systems: 3 } },
+    { label: 'Kullanici etkisi ve urun buyumesi', tags: { product: 3, design: 1 } },
+  ]},
+]
+
 const MAJOR_CORE_HINTS: Record<string, string[]> = {
-  CS:  ['IF100', 'CS201', 'CS204', 'CS300', 'CS301', 'CS306', 'MATH203', 'MATH204', 'ENS491', 'ENS492'],
-  IE:  ['IF100', 'MATH203', 'MATH204', 'IE305', 'IE311'],
-  EE:  ['IF100', 'MATH203', 'MATH212', 'EE302', 'EE311'],
-  ME:  ['IF100', 'MATH203', 'MATH212', 'ME301', 'ME302'],
-  BIO: ['IF100', 'BIO301', 'BIO303', 'BIO321', 'BIO332'],
+  CS:  ['CS201', 'CS204', 'CS300', 'CS301', 'CS306', 'MATH203', 'MATH204', 'ENS491', 'ENS492'],
+  IE:  ['MATH203', 'MATH204', 'IE305', 'IE311', 'IE302'],
+  EE:  ['MATH203', 'MATH212', 'EE302', 'EE311', 'EE312'],
+  ME:  ['MATH203', 'MATH212', 'ME301', 'ME302', 'ME307'],
+  BIO: ['BIO301', 'BIO303', 'BIO321', 'BIO332', 'BIO335'],
 }
 
 const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
@@ -325,6 +393,43 @@ function shortCourse(code: string, map: Map<string, Course>) {
   if (!c) return `- **${code}**`
   const name = c.name && c.name.trim() ? c.name : code
   return `- **${code}** — ${name}`
+}
+
+function estimateCourseDifficulty(course: Course | undefined): number {
+  if (!course) return 6
+  const level = courseLevel(course.fullCode)
+  const prereqCount = Array.isArray(course.prerequisites) ? course.prerequisites.length : 0
+  const base = level >= 4 ? 7 : level === 3 ? 6 : 5
+  return Math.max(3, Math.min(10, base + Math.min(2, prereqCount)))
+}
+
+function prerequisiteSatisfied(
+  code: string,
+  map: Map<string, Course>,
+  completed: Set<string>,
+  planned: Set<string>,
+) {
+  const course = map.get(code)
+  if (!course || !course.prerequisites || course.prerequisites.length === 0) return true
+  return course.prerequisites.every((req) => {
+    const normalized = String(req).replace(/\s+/g, '').toUpperCase()
+    return completed.has(normalized) || planned.has(normalized)
+  })
+}
+
+function courseLevel(code: string): number {
+  const m = code.match(/\d{3,5}/)
+  if (!m) return 0
+  const n = parseInt(m[0], 10)
+  return Math.floor(n / 100)
+}
+
+function rankCourseLevels(selectedCourses: string[], difficulty: Exclude<Difficulty, null>) {
+  const takenLevels = selectedCourses.map((c) => courseLevel(c)).filter((n) => n > 0)
+  const maxTaken = takenLevels.length ? Math.max(...takenLevels) : 3
+  if (difficulty === 'easy') return [2, 3, 4]
+  if (difficulty === 'hard') return [4, 3, 2]
+  return [Math.max(2, Math.min(4, maxTaken)), 3, 4, 2]
 }
 
 function normalizeCategories(status: unknown) {
@@ -370,6 +475,16 @@ function rankTracksByProfile(major: string, profileTags: string[]): TrackOption[
   return [...options].sort((a, b) => {
     const scoreA = a.tags.filter((t) => profileTags.includes(t)).length
     const scoreB = b.tags.filter((t) => profileTags.includes(t)).length
+    if (scoreB !== scoreA) return scoreB - scoreA
+    return a.label.localeCompare(b.label)
+  })
+}
+
+function rankTracksByQuiz(major: string, quizScores: Record<string, number>): TrackOption[] {
+  const options = getTrackOptions(major).filter((t) => t.id !== 'undecided')
+  return [...options].sort((a, b) => {
+    const scoreA = a.tags.reduce((sum, tag) => sum + (quizScores[tag] ?? 0), 0)
+    const scoreB = b.tags.reduce((sum, tag) => sum + (quizScores[tag] ?? 0), 0)
     if (scoreB !== scoreA) return scoreB - scoreA
     return a.label.localeCompare(b.label)
   })
@@ -438,7 +553,7 @@ export function ChatWindow() {
     const categories = normalizeCategories(status)
 
     const totalCompleted = Number(payload.totalCompletedEcts ?? payload.completedEcts ?? 0)
-    const totalRequired  = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 136)
+    const totalRequired  = Number(payload.totalRequiredEcts ?? payload.totalEcts ?? 125)
     const remainingSu    = Math.max(0, totalRequired - totalCompleted)
     const estimated      = Number(payload.estimatedSemestersLeft ?? payload.estimatedSemesters ?? 0)
 
@@ -453,6 +568,7 @@ export function ChatWindow() {
       basicScience: 'Temel Bilim',
       free:         'Serbest Secmeli',
       university:   'Universite Dersleri',
+      engineering:  'Muhendislik Kredisi',
     }
 
     const categoryLines = categories.length
@@ -466,7 +582,7 @@ export function ChatWindow() {
       ? missingCodes.map((code) => shortCourse(code, map)).join('\n')
       : 'Eksik ders listesi bulunamadi.'
 
-return `## Mezuniyet Durumu — ${major}
+    return `## Mezuniyet Durumu — ${major}
 
 Toplam: **${totalCompleted}/${totalRequired} SU Kredi**
 Kalan: **${remainingSu} SU Kredi**
@@ -477,7 +593,9 @@ ${categoryLines}
 ### Eksik Ders Ornekleri
 ${missingLines}
 
-Tahmini kalan donem: **${estimated || '?'}**`
+Tahmini kalan donem: **${estimated || '?'}**
+
+Not: Mezuniyette toplam 125 SU krediye ek olarak core/area/free/university ile muhendislik ve temel bilim minimumlari birlikte kontrol edilir.`
   }, [hydrateCourses])
 
   const formatFallbackGraduationReply = useCallback(async (major: string) => {
@@ -510,43 +628,77 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
     await streamWizardReply(text)
   }, [formatFallbackGraduationReply, formatGraduationReply, selectedCourses, streamWizardReply, studentId, token])
 
-  const formatPlanReply = useCallback(async (major: string, trackIds: string[], difficulty: Exclude<Difficulty, null>) => {
-    const tracks = rankTracksByProfile(major, wizard.profileTags).filter((t) => trackIds.includes(t.id))
+  const formatPlanReply = useCallback(async (major: string, difficulty: Exclude<Difficulty, null>) => {
+    const ranked = rankTracksByProfile(major, wizard.profileTags).filter((t) => t.id !== 'undecided')
+    const tracks = ranked.slice(0, 2)
     const trackCourses = tracks.flatMap((t) => t.courses)
     const corePool = MAJOR_CORE_HINTS[major] ?? []
-    const coreNeed = corePool.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 3 : difficulty === 'balanced' ? 2 : 1)
-    const trackNeed = trackCourses.filter((c) => !selectedCourses.includes(c)).slice(0, difficulty === 'hard' ? 4 : difficulty === 'balanced' ? 3 : 2)
+    const coreNeed = corePool.filter((c) => !selectedCourses.includes(c))
+    const trackNeed = trackCourses.filter((c) => !selectedCourses.includes(c))
     const helper = SUPPORTER_COURSES[difficulty]
-    const finalList = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
-    const map = await hydrateCourses(finalList)
+    const rawCandidates = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
+      .filter((c) => courseLevel(c) >= 2)
+    const map = await hydrateCourses(rawCandidates)
+    const completedSet = new Set(selectedCourses.map((c) => c.toUpperCase()))
+    const targetLevels = rankCourseLevels(selectedCourses, difficulty)
+    const maxCourses = difficulty === 'hard' ? 7 : difficulty === 'balanced' ? 6 : 5
+    const finalList: string[] = []
+    const plannedSet = new Set<string>()
+    const addByLevel = (lvl: number, cap: number) => {
+      const bucket = rawCandidates
+        .filter((c) => courseLevel(c) === lvl)
+        .filter((c) => !finalList.includes(c))
+        .filter((c) => prerequisiteSatisfied(c, map, completedSet, plannedSet))
+      for (const code of bucket) {
+        if (finalList.length >= maxCourses || cap <= 0) break
+        finalList.push(code)
+        plannedSet.add(code)
+        cap -= 1
+      }
+    }
+    for (const lvl of targetLevels) addByLevel(lvl, difficulty === 'easy' ? 2 : 3)
+    if (finalList.length < maxCourses) {
+      for (const code of rawCandidates) {
+        if (finalList.length >= maxCourses) break
+        if (finalList.includes(code)) continue
+        if (!prerequisiteSatisfied(code, map, completedSet, plannedSet)) continue
+        finalList.push(code)
+        plannedSet.add(code)
+      }
+    }
     const trackLabel = tracks.map((t) => t.label).join(' + ')
+    const lines = finalList.map((code) => {
+      const c = map.get(code)
+      const diff = estimateCourseDifficulty(c)
+      const prereq = c?.prerequisites?.length ? c.prerequisites.join(', ') : 'Yok'
+      return `${shortCourse(code, map)} · Zorluk: **${diff}/10** · Onkosul: ${prereq}`
+    })
 
     return `## Bu Donem Ne Almaliyim? — ${major}
 
-Secilen alan: **${trackLabel || 'Karisik'}** · Zorluk: **${difficulty}**
+Oneri odagi: **${trackLabel || 'Dengeli'}** · Zorluk: **${difficulty}**
 
-${finalList.map((c) => shortCourse(c, map)).join('\n')}
+${lines.join('\n')}
 
 Yol notu: ${tracks.length ? tracks.map((t) => t.description).join(' | ') : 'Dengeli ilerleme secildi.'}
+Seviye notu: 1xx dersler onerilmedi; 2xx, 3xx ve 4xx seviyeleri dengeli sekilde dagitildi.
 
 Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
   }, [hydrateCourses, selectedCourses, wizard.profileTags])
 
-  const formatPathReply = useCallback(async (major: string, trackIds: string[]) => {
-    const tracks = rankTracksByProfile(major, wizard.profileTags).filter((t) => trackIds.includes(t.id))
+  const formatPathReply = useCallback(async (major: string, trackIds: string[], quizScores?: Record<string, number>) => {
+    const tracks = (quizScores ? rankTracksByQuiz(major, quizScores) : rankTracksByProfile(major, wizard.profileTags))
+      .filter((t) => trackIds.includes(t.id))
     const allCodes = Array.from(new Set(tracks.flatMap((t) => t.courses)))
     const map = await hydrateCourses(allCodes)
 
     const sections = tracks.map((track) => {
-      const done    = track.courses.filter((c) => selectedCourses.includes(c)).length
-      const total   = track.courses.length
-      const pct     = total ? Math.round((done / total) * 100) : 0
       const missing = track.courses.filter((c) => !selectedCourses.includes(c)).slice(0, 6)
       const career  = TRACK_CAREER[track.id]
 
       const courseSection = missing.length
-        ? `**Once al:**\n${missing.map((c) => shortCourse(c, map)).join('\n')}`
-        : 'Bu alan icin onerilen derslerin cogu tamam.'
+        ? `**Oncelikli dersler:**\n${missing.map((c) => shortCourse(c, map)).join('\n')}`
+        : 'Bu alan icin onerilen derslerin buyuk bolumu tamamlanmis gozukuyor.'
 
       const jobSection = career?.jobs?.length
         ? `\n\n**Calisabilecegin roller:**\n${career.jobs.map((j, i) => `${i + 1}. ${j}`).join('\n')}`
@@ -556,14 +708,10 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
         ? `\n\n**Yuksek lisans / doktora yonleri:**\n${career.grad.map((g, i) => `${i + 1}. ${g}`).join('\n')}`
         : ''
 
-      return `### ${track.label}\nTamamlanma: **%${pct}** (${done}/${total} ders)\n${track.description}\n\n${courseSection}${jobSection}${gradSection}`
+      return `### ${track.label}\n${track.description}\n\nBu alan, verdigin cevaplara gore teknik ilgi ve calisma tarzina en uyumlu yollardan biri. Teorik/uygulamali dengesi, ders secimi ve kariyer ciktilari acisindan seni istikrarlı sekilde ileri tasir.\n\n${courseSection}${jobSection}${gradSection}`
     })
 
-    return `## Hangi Alanda Ilerlemeliyim?
-
-Profil secimin: **${wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Belirtilmedi'}**
-
-${sections.join('\n\n')}`
+    return `## Hangi Alanda Ilerlemeliyim?\n\nVerdigin cevaplari teknik ilgi, ders uyumu ve kariyer yonelimi ekseninde degerlendirerek en uygun alanlari tahmin ettim.\n\n${sections.join('\n\n')}`
   }, [hydrateCourses, selectedCourses, wizard.profileTags])
 
   const sendRag = useCallback(async (question: string, contextType = 'course_qa') => {
@@ -610,15 +758,34 @@ ${sections.join('\n\n')}`
 
   const startPlanWizard = useCallback(() => {
     if (isStreaming) return
+    const major = authMajor || ''
+    if (major) {
+      addMessage({ role: 'assistant', content: `Tamam. Bolumunu **${major}** kabul ederek devam ediyorum.`, isWizard: true })
+      if (isComplete && selectedCourses.length > 0) {
+        setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'difficulty-select' })
+      } else {
+        addMessage({ role: 'assistant', content: 'Aldigin dersleri secmek istersen panelden sec. Secmek istemiyorsan "secmicem sen oner" yazabilirsin.', isWizard: true })
+        setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'course-select' })
+        setCoursePanelCategory('all')
+        setShowPanel(true)
+      }
+      return
+    }
     addMessage({ role: 'assistant', content: 'Bu donem plani icin bolumunu secelim.', isWizard: true })
     setWizard({ ...INITIAL_WIZARD, type: 'plan', step: 'major-select' })
-  }, [isStreaming, addMessage])
+  }, [isStreaming, addMessage, authMajor, isComplete, selectedCourses.length])
 
   const startPathWizard = useCallback(() => {
     if (isStreaming) return
-    addMessage({ role: 'assistant', content: 'Sana uygun alani bulmak icin once bolumunu sec.', isWizard: true })
+    const major = authMajor || ''
+    if (major) {
+      addMessage({ role: 'assistant', content: `Bolumunu **${major}** kabul ettim. Simdi 10 soruluk hizli uyum testi basliyor.`, isWizard: true })
+      setWizard({ ...INITIAL_WIZARD, type: 'path', major, step: 'path-quiz', quizIndex: 0, quizScores: {} })
+      return
+    }
+    addMessage({ role: 'assistant', content: 'Sana en uygun alani tahmin etmek icin once bolumunu sec, sonra 10 kisa soru soracagim.', isWizard: true })
     setWizard({ ...INITIAL_WIZARD, type: 'path', step: 'major-select' })
-  }, [isStreaming, addMessage])
+  }, [isStreaming, addMessage, authMajor])
 
   const handleWizardSelect = useCallback(async (payload: {
     major?: string
@@ -638,10 +805,10 @@ ${sections.join('\n\n')}`
 
       if (type === 'plan') {
         if (isComplete && selectedCourses.length > 0) {
-          addMessage({ role: 'assistant', content: 'En fazla 2 alan secebilirsin.', isWizard: true })
-          setWizard((w) => ({ ...w, major: selectedMajor, step: 'track-select' }))
+          addMessage({ role: 'assistant', content: 'Tamam. Simdi zorluk seviyesini sec, ben uygun dersleri onerecegim.', isWizard: true })
+          setWizard((w) => ({ ...w, major: selectedMajor, step: 'difficulty-select' }))
         } else {
-          addMessage({ role: 'assistant', content: 'Once aldigin dersleri secelim, sonra alan seceriz.', isWizard: true })
+          addMessage({ role: 'assistant', content: 'Istersen aldigin dersleri sec. Secmek istemiyorsan "secmicem sen oner" yazman yeterli.', isWizard: true })
           setWizard((w) => ({ ...w, major: selectedMajor, step: 'course-select' }))
           setCoursePanelCategory('all')
           setShowPanel(true)
@@ -650,8 +817,8 @@ ${sections.join('\n\n')}`
       }
 
       if (type === 'path') {
-        addMessage({ role: 'assistant', content: 'Seni tanimak icin en az 1, en fazla 3 ozellik sec.', isWizard: true })
-        setWizard((w) => ({ ...w, major: selectedMajor, step: 'profile-select', profileTags: [], selectedTracks: [] }))
+        addMessage({ role: 'assistant', content: 'Harika. Simdi 10 soruluk hizli uyum testine basliyoruz.', isWizard: true })
+        setWizard((w) => ({ ...w, major: selectedMajor, step: 'path-quiz', quizIndex: 0, quizScores: {}, selectedTracks: [] }))
       }
       return
     }
@@ -669,27 +836,38 @@ ${sections.join('\n\n')}`
 
       addMessage({
         role: 'assistant',
-        content: type === 'path' ? 'Simdi seni tanimak icin birkac secim yap.' : 'Simdi alan secelim. En fazla 2 alan secebilirsin.',
+        content: type === 'path' ? 'Simdi 10 soruluk hizli uyum testine gecelim.' : 'Tamam. Simdi zorluk seviyesini sec, ben otomatik ders onerisi yapacagim.',
         isWizard: true,
       })
-      setWizard((w) => ({ ...w, step: type === 'path' ? 'profile-select' : 'track-select' }))
+      setWizard((w) => ({ ...w, step: type === 'path' ? 'path-quiz' : 'difficulty-select', quizIndex: 0, quizScores: {} }))
       return
     }
 
-    if (step === 'profile-select' && payload.profileTag) {
+    if (step === 'path-quiz' && payload.profileTag) {
+      const q = PATH_QUIZ_QUESTIONS[wizard.quizIndex]
+      if (!q) return
+      const opt = q.options.find((o) => o.label === payload.profileTag)
+      if (!opt) return
       setWizard((w) => {
-        const exists = w.profileTags.includes(payload.profileTag as string)
-        if (exists) return { ...w, profileTags: w.profileTags.filter((t) => t !== payload.profileTag) }
-        if (w.profileTags.length >= 3) return w
-        return { ...w, profileTags: [...w.profileTags, payload.profileTag as string] }
+        const nextScores = { ...w.quizScores }
+        Object.entries(opt.tags).forEach(([tag, points]) => {
+          nextScores[tag] = (nextScores[tag] ?? 0) + points
+        })
+        const nextIndex = w.quizIndex + 1
+        return { ...w, quizScores: nextScores, quizIndex: nextIndex }
       })
-      return
-    }
-
-    if (step === 'profile-select' && payload.profileDone) {
-      addMessage({ role: 'user', content: wizard.profileTags.length ? wizard.profileTags.join(', ') : 'Kararsizim' })
-      addMessage({ role: 'assistant', content: 'Secimlerine gore alanlar. En fazla 2 alan secebilirsin.', isWizard: true })
-      setWizard((w) => ({ ...w, step: 'track-select', selectedTracks: [] }))
+      const isLast = wizard.quizIndex >= PATH_QUIZ_QUESTIONS.length - 1
+      if (isLast) {
+        const mergedScores = { ...wizard.quizScores }
+        Object.entries(opt.tags).forEach(([tag, points]) => {
+          mergedScores[tag] = (mergedScores[tag] ?? 0) + points
+        })
+        const ranked = rankTracksByQuiz(major || authMajor, mergedScores)
+        const predicted = ranked.slice(0, 2).map((t) => t.id)
+        const text = await formatPathReply(major || authMajor, predicted, mergedScores)
+        await streamWizardReply(text)
+        setWizard(INITIAL_WIZARD)
+      }
       return
     }
 
@@ -727,7 +905,7 @@ ${sections.join('\n\n')}`
     if (step === 'difficulty-select' && payload.difficulty) {
       addMessage({ role: 'user', content: payload.difficulty })
       setWizard((w) => ({ ...w, difficulty: payload.difficulty as Exclude<Difficulty, null>, step: 'sending' }))
-      const text = await formatPlanReply(major || authMajor, wizard.selectedTracks, payload.difficulty)
+      const text = await formatPlanReply(major || authMajor, payload.difficulty)
       await streamWizardReply(text)
       setWizard(INITIAL_WIZARD)
     }
@@ -742,6 +920,15 @@ ${sections.join('\n\n')}`
     if (!cleaned) return
 
     const lowered = cleaned.toLowerCase()
+    if (
+      wizard.type === 'plan' &&
+      wizard.step === 'course-select' &&
+      /(secmicem|seçmicem|secmeyecegim|seçmeyeceğim|sen oner|sen öner|secmeden)/i.test(lowered)
+    ) {
+      addMessage({ role: 'user', content: cleaned })
+      handleWizardSelect({ coursesDone: true })
+      return
+    }
     if (wizard.type === 'plan' && wizard.step === null && (lowered === 'daha kolay' || lowered === 'daha zor')) {
       const difficulty: Exclude<Difficulty, null> = lowered === 'daha kolay' ? 'easy' : 'hard'
       handleWizardSelect({ difficulty })
@@ -836,25 +1023,21 @@ ${sections.join('\n\n')}`
               </WizardCard>
             )}
 
-            {wizard.step === 'profile-select' && (
-              <WizardCard key="profile">
-                <p className="text-xs text-white/50 mb-3">Sana uygun alanlari bulmak icin secim yap (1-3):</p>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {PROFILE_OPTIONS.map((p) => {
-                    const picked = wizard.profileTags.includes(p.id)
-                    return (
-                      <button key={p.id} onClick={() => handleWizardSelect({ profileTag: p.id })}
-                        className={cn('rounded-xl px-3 py-2 text-xs text-left border transition-all',
-                          picked ? 'bg-su-500/25 border-su-300/50 text-white' : 'glass border-white/10 text-white/80 hover:text-white')}>
-                        {p.label}
-                      </button>
-                    )
-                  })}
+            {wizard.step === 'path-quiz' && (
+              <WizardCard key={`quiz-${wizard.quizIndex}`}>
+                <p className="text-xs text-white/50 mb-2">Soru {Math.min(wizard.quizIndex + 1, PATH_QUIZ_QUESTIONS.length)}/{PATH_QUIZ_QUESTIONS.length}</p>
+                <p className="text-sm text-white/90 mb-3">{PATH_QUIZ_QUESTIONS[wizard.quizIndex]?.text}</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {(PATH_QUIZ_QUESTIONS[wizard.quizIndex]?.options ?? []).map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={() => handleWizardSelect({ profileTag: opt.label })}
+                      className="rounded-xl px-3 py-2 text-xs text-left border glass border-white/10 text-white/85 hover:text-white hover:bg-white/10"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-                <button onClick={() => handleWizardSelect({ profileDone: true })}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-su-500 text-white hover:bg-su-300">
-                  Alanlari goster
-                </button>
               </WizardCard>
             )}
 
@@ -911,6 +1094,15 @@ ${sections.join('\n\n')}`
             <QuickChip label="Hangi alanda ilerlemeliyim?" onClick={() => {
               addMessage({ role: 'user', content: 'Hangi alanda ilerlemeliyim?' })
               startPathWizard()
+            }} disabled={isStreaming} />
+            <QuickChip label="Bu dersi nasil calismaliyim?" onClick={() => {
+              dispatchInput('Bu dersi nasil calismaliyim?')
+            }} disabled={isStreaming} />
+            <QuickChip label="Bu ders kolay mi zor mu?" onClick={() => {
+              dispatchInput('Bu ders kolay mi zor mu?')
+            }} disabled={isStreaming} />
+            <QuickChip label="Bu hocayi tanitir misin?" onClick={() => {
+              dispatchInput('Onur Varol kim? Sabanci Universitesi hangi dersleri veriyor?')
             }} disabled={isStreaming} />
             <button
               onClick={() => {

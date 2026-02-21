@@ -22,13 +22,14 @@ interface MajorRequirements {
 
 type Requirements = Record<string, MajorRequirements>;
 
-const DEFAULT_TOTAL_CREDIT = 136;
+const DEFAULT_TOTAL_CREDIT = 125;
 const DEFAULT_CATEGORY_REQ: Record<string, number> = {
   core: 42,
   area: 21,
-  basicScience: 18,
-  university: 24,
+  basicScience: 24,
+  university: 23,
   free: 15,
+  engineering: 24,
 };
 
 @Injectable()
@@ -57,11 +58,7 @@ export class GraduationService {
 
     const categoryConfig = req?.categories ?? this.buildDefaultCategories();
     const categoryStatuses = Object.entries(categoryConfig).map(([cat, catReq]) => {
-      const catCourses = completedCourses.filter((c) => this.matchesCategory(cat, c as unknown as Record<string, unknown>));
-      const completedEcts = catCourses.reduce(
-        (s, c) => s + ((c as unknown as Record<string, number>).suCredit ?? 0),
-        0,
-      );
+      const completedEcts = this.sumCategory(cat, completedCourses as unknown as Record<string, unknown>[]);
       const missing = catReq.courses?.filter((code) => !completedCodes.includes(code)) ?? [];
 
       return {
@@ -91,13 +88,30 @@ export class GraduationService {
     };
   }
 
+  private sumCategory(category: string, courses: Record<string, unknown>[]) {
+    if (category === 'engineering') {
+      return courses.reduce((sum, c) => {
+        const cats = (c.categories as Record<string, number>) ?? {};
+        return sum + Number(cats.engineering ?? 0);
+      }, 0);
+    }
+    if (category === 'basicScience') {
+      return courses.reduce((sum, c) => {
+        const cats = (c.categories as Record<string, number>) ?? {};
+        return sum + Number(cats.basicScience ?? 0);
+      }, 0);
+    }
+
+    const catCourses = courses.filter((c) => this.matchesCategory(category, c));
+    return catCourses.reduce((s, c) => s + Number(c.suCredit ?? 0), 0);
+  }
+
   private matchesCategory(category: string, course: Record<string, unknown>) {
     const cats = (course.categories as Record<string, unknown>) ?? {};
     const elType = String(course.elType ?? '').toLowerCase();
 
     if (category === 'core') return Boolean(cats.isCore);
     if (category === 'area') return Boolean(cats.isArea);
-    if (category === 'basicScience') return Boolean(cats.isBasicScience);
     if (category === 'university') return elType === 'university';
     if (category === 'free') return elType === 'free';
     return false;

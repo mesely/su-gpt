@@ -38,6 +38,7 @@ interface CoursePageRow {
   subj_code?: string;          // e.g. "AL"
   crse_numb?: string;          // e.g. "102"
   title?: string;
+  header_text?: string;
   su_credits?: number | string;
   ects?: number | string;
   engineering?: number | string | null;
@@ -125,6 +126,8 @@ function fromCoursePageRow(row: CoursePageRow): CourseDoc | null {
   const engineering = parseFloat(String(row.engineering ?? '0')) || 0;
   const basicScience = parseFloat(String(row.basic_science ?? '0')) || 0;
   const title = (row.title ?? '').trim();
+  const headerText = (row.header_text ?? '').trim();
+  const headerDerivedTitle = headerText.replace(/^[A-ZÇĞİÖŞÜ]{2,6}\s*\d{3,5}[A-Z]?\s*/i, '').trim();
   const description = (row.description ?? '').trim();
 
   const isCore = full.startsWith('CS') || full.startsWith('IF') || full.startsWith('EE') || full.startsWith('ME') || full.startsWith('IE');
@@ -135,7 +138,7 @@ function fromCoursePageRow(row: CoursePageRow): CourseDoc | null {
     major: subj,
     code: numb,
     fullCode: full,
-    name: title || full,
+    name: title || headerDerivedTitle || full,
     ects: parseFloat(String(row.ects ?? '0')) || 0,
     suCredit: parseFloat(String(row.su_credits ?? '0')) || 0,
     faculty: '',

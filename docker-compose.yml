@@ -97,8 +97,8 @@ services:
       CHROMA_COLLECTION_EXAMS: ${CHROMA_COLLECTION_EXAMS:-su_exams}
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
-      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-text-embedding-004}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_EMBED_MODEL: ${GEMINI_EMBED_MODEL:-embedding-001}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY}
       MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
       MISTRAL_EMBED_MODEL: ${MISTRAL_EMBED_MODEL:-mistral-embed}

@@ -3,6 +3,9 @@ import { Observable, Subject } from 'rxjs';
 import { VectorService } from './vector.service';
 import { PromptBuilder, ContextType } from './prompt-builder';
 import { ChainOfThought } from './chain-of-thought';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as readline from 'readline';
 
 // p-queue ESM modülü için dynamic import kullanıyoruz
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -31,6 +34,16 @@ interface GeminiGenerateResponse {
     candidatesTokenCount?: number;
     totalTokenCount?: number;
   };
+}
+
+interface CourseContextEntry {
+  code: string;
+  title: string;
+  headerText: string;
+  description: string;
+  suCredit: number;
+  ects: number;
+  instructors: string[];
 }
 
 export interface AskParams {
@@ -64,10 +77,13 @@ export class RagService {
   private readonly geminiApiKey = process.env.GEMINI_API_KEY ?? '';
   private readonly model =
     this.provider === 'gemini'
-      ? process.env.GEMINI_MODEL ?? 'gemini-1.5-flash'
+      ? process.env.GEMINI_MODEL ?? 'gemini-2.0-flash'
       : process.env.MISTRAL_MODEL ?? 'mistral-small-latest';
   private readonly maxTokens = parseInt(process.env.MISTRAL_MAX_TOKENS ?? '2048', 10);
   private readonly temperature = parseFloat(process.env.MISTRAL_TEMPERATURE ?? '0.3');
+  private readonly courseContext = new Map<string, CourseContextEntry>();
+  private readonly instructorCourses = new Map<string, Set<string>>();
+  private courseContextLoaded = false;
 
   constructor(
     private readonly vector: VectorService,
@@ -102,6 +118,8 @@ export class RagService {
     params: AskParams,
     subject: Subject<AskChunk>,
   ) {
+    const dynamicChunks = await this.buildDynamicContextChunks(params.question);
+
     // 1. Query expansion
     const queries = this.cot.expandQuery(params.question);
     this.logger.debug(`Genişletilmiş sorgular: ${queries.join(' | ')}`);
@@ -112,7 +130,8 @@ export class RagService {
 
     // 3. Rerank → top 4
     const topChunks = this.vector.rerank(params.question, rawResults, 4);
-    const sourceIds = topChunks.map((c) => c.id);
+    const mergedTopChunks = [...dynamicChunks, ...topChunks].slice(0, 6);
+    const sourceIds = mergedTopChunks.map((c) => c.id);
 
     // 4. Prompt build
     const contextType = (params.contextType as ContextType) ?? 'course_qa';
@@ -120,7 +139,7 @@ export class RagService {
       this.promptBuilder.build({
         contextType,
         question: params.question,
-        chunks: topChunks,
+        chunks: mergedTopChunks,
         major: params.major,
         completedCourses: params.completedCourses,
         currentSemester: params.currentSemester,
@@ -144,6 +163,200 @@ export class RagService {
         contextType,
       );
     });
+  }
+
+  private async buildDynamicContextChunks(question: string) {
+    const needCourseContext =
+      /(hoca|instructor|prof|kim|kolay|zor|zor mu|çalışmalıyım|calismaliyim|nasıl çalış|nasil calis|öneri)/i.test(question);
+    if (!needCourseContext) return [];
+
+    await this.ensureCourseContextLoaded();
+    const codes = this.extractCourseCodes(question).slice(0, 4);
+    const chunks: Array<{ id: string; text: string; score: number; metadata: Record<string, string> }> = [];
+
+    for (const code of codes) {
+      const entry = this.courseContext.get(code);
+      if (!entry) continue;
+      const shortDesc = entry.description ? entry.description.replace(/\s+/g, ' ').slice(0, 500) : 'Açıklama bulunamadı.';
+      chunks.push({
+        id: `local_${code}`,
+        score: 1,
+        metadata: { source: 'local_course_context', code },
+        text: [
+          `Ders: ${entry.headerText || `${entry.code} ${entry.title}`}`,
+          `SU kredi: ${entry.suCredit || 0} | ECTS: ${entry.ects || 0}`,
+          `Dersi veren(son dönem): ${entry.instructors.length ? entry.instructors.join(', ') : 'bilinmiyor'}`,
+          `Açıklama: ${shortDesc}`,
+        ].join('\n'),
+      });
+    }
+
+    const instructorContext = this.findInstructorContext(question);
+    if (instructorContext) {
+      chunks.push({
+        id: 'local_instructor_context',
+        score: 0.95,
+        metadata: { source: 'local_instructor_context' },
+        text: instructorContext,
+      });
+    }
+
+    const webSnippet = await this.fetchWebSnippet(question);
+    if (webSnippet) {
+      chunks.push({
+        id: 'web_snippet',
+        score: 0.92,
+        metadata: { source: 'web' },
+        text: `Web özeti: ${webSnippet}`,
+      });
+    }
+
+    return chunks;
+  }
+
+  private async fetchWebSnippet(question: string): Promise<string> {
+    if (!/(hoca|instructor|prof|kim|hangi alanda|nasıl çalış|kolay|zor)/i.test(question)) return '';
+    try {
+      const endpoint = `https://api.duckduckgo.com/?q=${encodeURIComponent(`Sabancı Üniversitesi ${question}`)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
+      const res = await fetch(endpoint);
+      if (!res.ok) return '';
+      const data = (await res.json()) as {
+        AbstractText?: string;
+        RelatedTopics?: Array<{ Text?: string }>;
+      };
+      const abstract = (data.AbstractText ?? '').trim();
+      if (abstract) return abstract.slice(0, 420);
+      const related = data.RelatedTopics?.map((x) => x.Text ?? '').find((x) => x.trim().length > 0) ?? '';
+      return related.slice(0, 420);
+    } catch {
+      return '';
+    }
+  }
+
+  private extractCourseCodes(question: string): string[] {
+    const rx = /\b([A-ZÇĞİÖŞÜ]{2,6}\s?\d{3,5}[A-Z]?)\b/gi;
+    const set = new Set<string>();
+    let m: RegExpExecArray | null;
+    while ((m = rx.exec(question)) !== null) {
+      set.add(m[1].replace(/\s+/g, '').toUpperCase());
+    }
+    return Array.from(set);
+  }
+
+  private async ensureCourseContextLoaded() {
+    if (this.courseContextLoaded) return;
+    this.courseContextLoaded = true;
+
+    const baseDir = path.join(__dirname, '../../../course-service/data');
+    const coursePagePath = path.join(baseDir, 'all_coursepage_info.jsonl');
+    const schedulePath = path.join(baseDir, 'schedule/202502.jsonl');
+
+    await this.loadCoursePageInfo(coursePagePath);
+    await this.loadScheduleInstructors(schedulePath);
+  }
+
+  private async loadCoursePageInfo(filePath: string) {
+    if (!fs.existsSync(filePath)) return;
+    const rl = readline.createInterface({
+      input: fs.createReadStream(filePath),
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of rl) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const row = JSON.parse(trimmed) as {
+          course_id?: string;
+          title?: string;
+          header_text?: string;
+          description?: string;
+          su_credits?: number;
+          ects?: number;
+        };
+        const code = (row.course_id ?? '').toUpperCase();
+        if (!code) continue;
+        this.courseContext.set(code, {
+          code,
+          title: row.title ?? '',
+          headerText: row.header_text ?? '',
+          description: row.description ?? '',
+          suCredit: Number(row.su_credits ?? 0),
+          ects: Number(row.ects ?? 0),
+          instructors: [],
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private async loadScheduleInstructors(filePath: string) {
+    if (!fs.existsSync(filePath)) return;
+    const rl = readline.createInterface({
+      input: fs.createReadStream(filePath),
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of rl) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const row = JSON.parse(trimmed) as {
+          course_id?: string;
+          meetings?: Array<{ instructors?: string }>;
+        };
+        const code = (row.course_id ?? '').toUpperCase();
+        if (!code) continue;
+        const instructors = (row.meetings ?? [])
+          .map((m) => (m.instructors ?? '').replace(/\(\s*P\s*\)/g, '').trim())
+          .filter((x) => x.length > 0);
+        for (const instructor of instructors) {
+          const normalized = instructor.toLowerCase();
+          if (!this.instructorCourses.has(normalized)) {
+            this.instructorCourses.set(normalized, new Set());
+          }
+          this.instructorCourses.get(normalized)!.add(code);
+        }
+        if (!this.courseContext.has(code)) {
+          this.courseContext.set(code, {
+            code,
+            title: '',
+            headerText: code,
+            description: '',
+            suCredit: 0,
+            ects: 0,
+            instructors: Array.from(new Set(instructors)),
+          });
+          continue;
+        }
+        const prev = this.courseContext.get(code)!;
+        this.courseContext.set(code, {
+          ...prev,
+          instructors: Array.from(new Set([...prev.instructors, ...instructors])).slice(0, 8),
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private findInstructorContext(question: string): string {
+    if (!/(kim|hoca|prof|instructor)/i.test(question)) return '';
+    const lower = question.toLowerCase();
+    let best: { name: string; courses: string[] } | null = null;
+    for (const [name, courses] of this.instructorCourses.entries()) {
+      const parts = name.split(/\s+/).filter((p) => p.length > 2);
+      if (parts.length === 0) continue;
+      const hitCount = parts.filter((p) => lower.includes(p)).length;
+      if (hitCount < 2) continue;
+      const arr = Array.from(courses).slice(0, 8);
+      if (!best || arr.length > best.courses.length) {
+        best = { name, courses: arr };
+      }
+    }
+    if (!best) return '';
+    return `Ogretim uyesi: ${best.name}. Son donem verilerinde gecen dersler: ${best.courses.join(', ')}.`;
   }
 
   private async streamByProvider(
@@ -268,34 +481,53 @@ export class RagService {
       throw new Error('GEMINI_API_KEY tanımlı değil');
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.geminiApiKey}`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: {
-          role: 'system',
-          parts: [{ text: systemPrompt }],
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: question }],
-          },
-        ],
-        generationConfig: {
-          temperature: this.temperature,
-          maxOutputTokens: this.maxTokens,
-        },
-      }),
-    });
+    const models = Array.from(new Set([
+      this.model,
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash',
+    ]));
+    const versions = ['v1beta', 'v1'];
+    let data: GeminiGenerateResponse | null = null;
+    let lastError = '';
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Gemini API hatası: ${err}`);
+    for (const version of versions) {
+      for (const model of models) {
+        const endpoint = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${this.geminiApiKey}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: {
+              role: 'system',
+              parts: [{ text: systemPrompt }],
+            },
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: question }],
+              },
+            ],
+            generationConfig: {
+              temperature: this.temperature,
+              maxOutputTokens: this.maxTokens,
+            },
+          }),
+        });
+        if (!res.ok) {
+          lastError = await res.text();
+          continue;
+        }
+        data = (await res.json()) as GeminiGenerateResponse;
+        break;
+      }
+      if (data) break;
     }
 
-    const data = (await res.json()) as GeminiGenerateResponse;
+    if (!data) {
+      throw new Error(`Gemini API hatası: ${lastError}`);
+    }
+
     const fullAnswer =
       data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
     const promptTokens = data.usageMetadata?.promptTokenCount ?? 0;

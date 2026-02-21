@@ -43,7 +43,7 @@ export function CourseSelector({
         params.q = searchQ.trim()
         params.pageSize = '300'
       } else {
-        params.q = `^${activePrefix}`
+        params.q = activePrefix
         params.pageSize = '2500'
       }
 
