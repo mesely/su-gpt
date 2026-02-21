@@ -6,7 +6,16 @@ import { useAuthStore, useCourseSelectionStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 // PSY (not PSYC)
-const PREFIXES = ['ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'HIST', 'TLL', 'AL', 'HUM', 'SPS', 'NS', 'ENS', 'ECON', 'PSY', 'BIO']
+const PREFIXES = [
+  'ALL', 'CS', 'IF', 'EE', 'ME', 'IE', 'MATH', 'MAT', 'BIO', 'PSY',
+  'ACC', 'ECON', 'HIST', 'TLL', 'AL', 'HUM', 'SPS', 'NS', 'ENS',
+  'CHEM', 'PHYS', 'DSA', 'PROJ', 'CIP', 'ANTH', 'CONF', 'CULT',
+]
+
+const PREFIX_ALIASES: Record<string, string[]> = {
+  MATH: ['MATH', 'MAT'],
+  MAT: ['MAT', 'MATH'],
+}
 
 interface CourseSelectorProps {
   initialMajor?: string
@@ -62,34 +71,58 @@ export function CourseSelector({
   const [loading, setLoading]           = useState(false)
   const [searchQ, setSearchQ]           = useState('')
 
+  const fetchAllPages = useCallback(async (params: Record<string, string>) => {
+    if (!token) return [] as Course[]
+    const pageSize = 1000
+    let page = 1
+    let total = 0
+    const acc: Course[] = []
+
+    do {
+      const res = await api.searchCourses(token, { ...params, page: String(page), pageSize: String(pageSize) })
+      const normalized = (res.courses ?? [])
+        .map((c) => normalizeCourse(c as unknown as Record<string, unknown>))
+        .filter((c) => c.fullCode)
+      acc.push(...normalized)
+      total = Number(res.total ?? 0)
+      page += 1
+      if (normalized.length === 0) break
+    } while (acc.length < total)
+
+    const uniq = new Map<string, Course>()
+    for (const c of acc) uniq.set(c.fullCode, c)
+    return Array.from(uniq.values())
+  }, [token])
+
   const fetchCourses = useCallback(async () => {
     if (!token) return
     setLoading(true)
     setCourses([])
     try {
-      if (activePrefix === 'ALL' && !searchQ.trim()) { setCourses([]); return }
+      const aliases = PREFIX_ALIASES[activePrefix] ?? [activePrefix]
+      const collected: Course[] = []
 
-      const params: Record<string, string> = {}
       if (activePrefix === 'ALL') {
-        params.q = searchQ.trim()
-        params.pageSize = '300'
+        const params: Record<string, string> = {}
+        if (searchQ.trim()) params.q = searchQ.trim()
+        const all = await fetchAllPages(params)
+        collected.push(...all)
       } else {
-        params.major = activePrefix
-        params.pageSize = '2500'
+        for (const pref of aliases) {
+          const params: Record<string, string> = { q: pref }
+          const rows = await fetchAllPages(params)
+          collected.push(...rows)
+        }
       }
-
-      const res = await api.searchCourses(token, params)
-      const normalized = (res.courses ?? [])
-        .map((c) => normalizeCourse(c as unknown as Record<string, unknown>))
-        .filter((c) => c.fullCode)
-        .sort((a, b) => a.fullCode.localeCompare(b.fullCode))
-      setCourses(normalized)
+      const uniq = new Map<string, Course>()
+      for (const c of collected) uniq.set(c.fullCode, c)
+      setCourses(Array.from(uniq.values()).sort((a, b) => a.fullCode.localeCompare(b.fullCode)))
     } catch {
       setCourses([])
     } finally {
       setLoading(false)
     }
-  }, [token, activePrefix, searchQ])
+  }, [token, activePrefix, searchQ, fetchAllPages])
 
   useEffect(() => { fetchCourses() }, [fetchCourses])
   useEffect(() => { setCategoryFilter(initialCategory) }, [initialCategory])
@@ -100,7 +133,11 @@ export function CourseSelector({
   }
 
   const filtered = courses.filter((c) => {
-    if (activePrefix !== 'ALL' && codePrefix(c.fullCode) !== activePrefix) return false
+    if (activePrefix !== 'ALL') {
+      const prefix = codePrefix(c.fullCode)
+      const allowed = new Set(PREFIX_ALIASES[activePrefix] ?? [activePrefix])
+      if (!allowed.has(prefix)) return false
+    }
     if (categoryFilter !== 'all') {
       if (categoryFilter === 'core' && !c.categories?.isCore) return false
       if (categoryFilter === 'area' && !c.categories?.isArea) return false
@@ -190,7 +227,7 @@ export function CourseSelector({
         )}
         {!loading && filtered.length === 0 && (
           <p className="text-xs text-white/30 text-center py-8">
-            {activePrefix === 'ALL' && !searchQ.trim() ? 'Arama yaz veya bir kod sekmesi sec.' : 'Ders bulunamadi'}
+            Ders bulunamadi
           </p>
         )}
         <AnimatePresence>
