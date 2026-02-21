@@ -1,50 +1,54 @@
 {
   "CS": {
     "major": "CS",
-    "totalCredit": 136,
+    "totalCredit": 125,
     "categories": {
+      "required": {
+        "minCredit": 4,
+        "courses": ["ENS491", "ENS492"]
+      },
       "core": {
-        "minCredit": 48,
-        "courses": ["CS201", "CS204", "CS301", "CS303", "CS306", "CS307", "CS401", "CS403", "CS404"]
+        "minCredit": 31,
+        "courses": ["CS201", "CS204", "CS300", "CS301", "CS303", "CS306", "CS404"]
       },
       "area": {
-        "minCredit": 24,
+        "minCredit": 21,
         "pools": ["NLP_PATH", "CV_PATH", "SYSTEMS_PATH"]
       },
-      "basicScience": { "minCredit": 20 },
-      "university":   { "minCredit": 12 },
-      "free":         { "minCredit": 12 }
+      "basicScience": { "minCredit": 24 },
+      "university": { "minCredit": 23 },
+      "free": { "minCredit": 15 },
+      "engineering": { "minCredit": 24 }
     },
     "paths": {
       "NLP_PATH": {
         "name": "Natural Language Processing",
-        "requiredCourses": ["CS412", "CS464", "CS514"],
-        "electivePick": { "count": 2, "from": ["CS461", "CS562"] }
+        "requiredCourses": ["CS412", "CS445", "CS455"],
+        "electivePick": { "count": 1, "from": ["CS464", "CS48011"] }
       },
       "CV_PATH": {
         "name": "Computer Vision",
-        "requiredCourses": ["CS484", "CS585"],
-        "electivePick": { "count": 2, "from": ["CS489", "CS580"] }
+        "requiredCourses": ["CS412", "CS415", "CS419"],
+        "electivePick": { "count": 1, "from": ["CS405", "CS447"] }
       },
       "SYSTEMS_PATH": {
-        "name": "Systems & Control",
-        "requiredCourses": ["EE361", "EE462"],
-        "electivePick": { "count": 2, "from": ["EE465", "EE560"] }
+        "name": "Systems and Security",
+        "requiredCourses": ["CS307", "CS403", "CS411"],
+        "electivePick": { "count": 1, "from": ["CS432", "CS436", "CS438"] }
       }
     }
   },
   "IF": {
     "major": "IF",
-    "totalCredit": 136,
+    "totalCredit": 125,
     "categories": {
-      "core": {
-        "minCredit": 5,
-        "courses": ["IF100"]
-      },
-      "area":         { "minCredit": 24, "pools": [] },
-      "basicScience": { "minCredit": 20 },
-      "university":   { "minCredit": 12 },
-      "free":         { "minCredit": 12 }
+      "required": { "minCredit": 5, "courses": ["IF100"] },
+      "core": { "minCredit": 26 },
+      "area": { "minCredit": 21, "pools": [] },
+      "basicScience": { "minCredit": 24 },
+      "university": { "minCredit": 23 },
+      "free": { "minCredit": 15 },
+      "engineering": { "minCredit": 24 }
     },
     "paths": {}
   }

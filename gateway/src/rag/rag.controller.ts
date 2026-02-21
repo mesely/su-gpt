@@ -66,7 +66,7 @@ export class RagController implements OnModuleInit {
       student_id: body.studentId,
       major: body.major,
       completed_courses: body.completedCourses ?? [],
-      current_semester: body.currentSemester ?? 1,
+      current_semester: body.currentSemester ?? 0,
       context_type: body.contextType ?? 'course_qa',
     });
 

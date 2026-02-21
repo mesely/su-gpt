@@ -217,7 +217,7 @@ export class CoursesService {
         const isCore = level >= 200 && ['CS', 'EE', 'ME', 'IE', 'BIO', 'MAT', 'MATH', 'DSA', 'ENS'].includes(major);
         const isArea = level >= 300;
         const isBasicScience = basic.basicScience > 0;
-        const elType = this.guessElType(major, level, isArea);
+        const elType = this.guessElType(major, level, isArea, fullCode);
 
         const course: PlainCourse = {
           _id: fullCode,
@@ -256,7 +256,9 @@ export class CoursesService {
     return Array.from(new Set(matches.map((m) => m.replace(/\s+/g, ''))));
   }
 
-  private guessElType(major: string, level: number, isArea: boolean) {
+  private guessElType(major: string, level: number, isArea: boolean, fullCode: string) {
+    const requiredCodes = new Set(['ENS491', 'ENS492', 'CS395', 'PROJ201', 'PROJ302']);
+    if (requiredCodes.has(fullCode)) return 'required';
     if (major === 'IF' || major === 'SPS' || major === 'HUM' || major === 'TLL' || major === 'HIST' || major === 'AL') {
       return 'university';
     }

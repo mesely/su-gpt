@@ -527,6 +527,7 @@ export function ChatWindow() {
   const [coursePanelCategory, setCoursePanelCategory] = useState<'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'>('all')
   const [courseMap, setCourseMap] = useState<Map<string, Course>>(new Map())
   const bottomRef = useRef<HTMLDivElement>(null)
+  const majorPoolRef = useRef<Map<string, string[]>>(new Map())
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -578,6 +579,35 @@ export function ChatWindow() {
     return map
   }, [token, courseMap])
 
+  const getMajorCoursePool = useCallback(async (major: string) => {
+    const key = String(major || '').toUpperCase()
+    if (!key || !token) return [] as string[]
+    const cached = majorPoolRef.current.get(key)
+    if (cached) return cached
+
+    const list: string[] = []
+    let page = 1
+    const pageSize = 200
+    while (page <= 12) {
+      try {
+        const res = await api.searchCourses(token, { major: key, page: String(page), pageSize: String(pageSize) })
+        for (const course of res.courses ?? []) {
+          const code = String(course.fullCode ?? '').toUpperCase()
+          if (!code) continue
+          list.push(code)
+        }
+        if (list.length >= Number(res.total ?? 0)) break
+      } catch {
+        break
+      }
+      page += 1
+    }
+
+    const unique = Array.from(new Set(list))
+    majorPoolRef.current.set(key, unique)
+    return unique
+  }, [token])
+
   const streamWizardReply = useCallback(async (text: string) => {
     addMessage({ role: 'assistant', content: '' })
     setStreaming(true)
@@ -600,7 +630,8 @@ export function ChatWindow() {
     const map = await hydrateCourses(missingCodes)
 
     const categoryName: Record<string, string> = {
-      core:         'Zorunlu / Cekirdek',
+      required:     'Zorunlu',
+      core:         'Cekirdek',
       area:         'Alan Secmeli',
       basicScience: 'Temel Bilim',
       free:         'Serbest Secmeli',
@@ -714,6 +745,21 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
         plannedSet.add(code)
       }
     }
+    if (finalList.length < Math.min(4, maxCourses)) {
+      const pool = await getMajorCoursePool(major)
+      const expanded = pool
+        .filter((c) => !selectedCourses.includes(c))
+        .filter((c) => !inProgressCourses.includes(c))
+        .filter((c) => courseLevel(c) >= 2)
+      const fullMap = await hydrateCourses(expanded.slice(0, 300))
+      for (const code of expanded) {
+        if (finalList.length >= maxCourses) break
+        if (finalList.includes(code)) continue
+        if (!prerequisiteSatisfied(code, fullMap, completedSet, plannedSet)) continue
+        finalList.push(code)
+        plannedSet.add(code)
+      }
+    }
     const trackLabel = tracks.map((t) => t.label).join(' + ')
     const lines = finalList.map((code) => {
       const c = map.get(code)
@@ -739,11 +785,11 @@ ${takenPreview}
 Yol notu: ${tracks.length ? tracks.map((t) => t.description).join(' | ') : 'Dengeli ilerleme secildi.'}
 Seviye notu: 1xx dersler onerilmedi; 2xx, 3xx ve 4xx seviyeleri dengeli sekilde dagitildi.
 
-Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
+Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", "alan odakli", "core derslerimi degistir", "area derslerimi degistir", "free derslerimi degistir", "hepsi bu donem aciliyor mu".`
       ,
       recommendedCodes: finalList,
     }
-  }, [hydrateCourses, inProgressCourses, selectedCourses, wizard.profileTags])
+  }, [getMajorCoursePool, hydrateCourses, inProgressCourses, selectedCourses, wizard.profileTags])
 
   const formatPathReply = useCallback(async (major: string, trackIds: string[], quizScores?: Record<string, number>) => {
     const tracks = (quizScores ? rankTracksByQuiz(major, quizScores) : rankTracksByProfile(major, wizard.profileTags))
@@ -1020,6 +1066,14 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
       addMessage({ role: 'assistant', content: 'Serbest ders secimini guncelle; sonra yeni plani tekrar olusturacagim.', isWizard: true })
       return
     }
+    if (/(area derslerimi degistir|alan derslerimi degistir|area degistir|alan degistir)/i.test(lowered)) {
+      setCoursePanelCategory('area')
+      setShowPanel(true)
+      setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
+      addMessage({ role: 'user', content: cleaned })
+      addMessage({ role: 'assistant', content: 'Alan secmeli secimini guncelle; sonra yeni plani tekrar olusturacagim.', isWizard: true })
+      return
+    }
 
     if (
       wizard.type === 'plan' &&
@@ -1030,9 +1084,28 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
       handleWizardSelect({ coursesDone: true })
       return
     }
-    if (wizard.type === 'plan' && wizard.step === null && (lowered === 'daha kolay' || lowered === 'daha zor')) {
-      const difficulty: Exclude<Difficulty, null> = lowered === 'daha kolay' ? 'easy' : 'hard'
+    if (wizard.type === 'plan' && wizard.step === null && (lowered === 'daha kolay' || lowered === 'daha zor' || lowered === 'daha dengeli')) {
+      const difficulty: Exclude<Difficulty, null> =
+        lowered === 'daha kolay' ? 'easy' : lowered === 'daha zor' ? 'hard' : 'balanced'
       handleWizardSelect({ difficulty })
+      return
+    }
+    if (wizard.type === 'plan' && wizard.step === null && /(daha cs odakli|cs odakli)/i.test(lowered)) {
+      addMessage({ role: 'user', content: cleaned })
+      setWizard((w) => ({ ...w, profileTags: ['systems', 'coding'] }))
+      handleWizardSelect({ difficulty: 'balanced' })
+      return
+    }
+    if (wizard.type === 'plan' && wizard.step === null && /(alan odakli|alanima odakli|path odakli)/i.test(lowered)) {
+      addMessage({ role: 'user', content: cleaned })
+      setWizard((w) => ({ ...w, profileTags: ['ml', 'analysis', 'research'] }))
+      handleWizardSelect({ difficulty: 'balanced' })
+      return
+    }
+    if (/(hepsi bu donem aciliyor mu|bu donem aciliyor mu|cakisma var mi|cakisiyor mu)/i.test(lowered) && inProgressCourses.length > 0) {
+      addMessage({ role: 'user', content: cleaned })
+      const question = `${cleaned}\nPlan dersleri: ${inProgressCourses.join(', ')}`
+      sendRag(question)
       return
     }
 
@@ -1052,7 +1125,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
 
     setWizard(INITIAL_WIZARD)
     sendRag(cleaned)
-  }, [addMessage, authMajor, handleWizardSelect, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
+  }, [addMessage, authMajor, handleWizardSelect, inProgressCourses, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

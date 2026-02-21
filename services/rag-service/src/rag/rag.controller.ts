@@ -41,7 +41,7 @@ export class RagController {
       studentId: data.student_id,
       major: data.major,
       completedCourses: data.completed_courses ?? [],
-      currentSemester: data.current_semester ?? 1,
+      currentSemester: data.current_semester ?? 0,
       contextType: data.context_type,
       extraContext: data.extra_context,
     });

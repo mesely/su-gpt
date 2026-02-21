@@ -40,6 +40,12 @@ export class PromptBuilder {
       : [];
     this.fewShots = fewShotFiles
       .map((f) => fs.readFileSync(path.join(fewShotsDir, f), 'utf-8'))
+      .map((raw) => {
+        const q = raw.match(/SORU:\s*([\s\S]*?)\n(?:DÜŞÜN:|DUSUN:|YANIT:)/i)?.[1]?.trim() ?? '';
+        const a = raw.match(/YANIT:\s*([\s\S]*)$/i)?.[1]?.trim() ?? raw.trim();
+        if (!q) return `YANIT ORNEGI:\n${a}`;
+        return `SORU ORNEGI: ${q}\nYANIT ORNEGI:\n${a}`;
+      })
       .join('\n\n---\n\n');
   }
 
@@ -61,15 +67,19 @@ export class PromptBuilder {
       .map((c, i) => `[${i + 1}] ${c.text}`)
       .join('\n\n');
 
+    const semesterText = params.currentSemester && params.currentSemester > 0
+      ? String(params.currentSemester)
+      : 'Bilinmiyor';
+
     let prompt = template
       .replace('{context}', contextText)
       .replace('{question}', params.question)
       .replace('{major}', params.major)
       .replace('{completed_courses}', params.completedCourses.join(', ') || 'Yok')
-      .replace('{current_semester}', String(params.currentSemester))
+      .replace('{current_semester}', semesterText)
       .replace('{review_chunks}', contextText)
       .replace('{completed}', params.completedCourses.join(', ') || 'Yok')
-      .replace('{semester}', String(params.currentSemester));
+      .replace('{semester}', semesterText);
 
     // Extra context varsa ekle
     if (params.extraContext) {

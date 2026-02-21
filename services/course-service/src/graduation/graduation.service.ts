@@ -24,7 +24,8 @@ type Requirements = Record<string, MajorRequirements>;
 
 const DEFAULT_TOTAL_CREDIT = 125;
 const DEFAULT_CATEGORY_REQ: Record<string, number> = {
-  core: 42,
+  required: 11,
+  core: 31,
   area: 21,
   basicScience: 24,
   university: 23,
@@ -49,7 +50,12 @@ export class GraduationService {
   ) {
     const normalizedMajor = (major || '').toUpperCase();
     const req = this.requirements[normalizedMajor];
-    const completedCourses = await this.coursesService.findByCodes(completedCodes);
+    const normalizedCompletedCodes = Array.from(
+      new Set(
+        (completedCodes ?? []).map((c) => String(c).replace(/\s+/g, '').toUpperCase()).filter(Boolean),
+      ),
+    );
+    const completedCourses = await this.coursesService.findByCodes(normalizedCompletedCodes);
 
     const totalCompletedEcts = completedCourses.reduce(
       (sum, c) => {
@@ -60,9 +66,19 @@ export class GraduationService {
     );
 
     const categoryConfig = req?.categories ?? this.buildDefaultCategories();
+    const requiredCourseSet = new Set(
+      (categoryConfig.required?.courses ?? []).map((c) => c.replace(/\s+/g, '').toUpperCase()),
+    );
     const categoryStatuses = Object.entries(categoryConfig).map(([cat, catReq]) => {
-      const completedEcts = this.sumCategory(cat, completedCourses as unknown as Record<string, unknown>[]);
-      const missing = catReq.courses?.filter((code) => !completedCodes.includes(code)) ?? [];
+      const completedEcts = this.sumCategory(
+        cat,
+        completedCourses as unknown as Record<string, unknown>[],
+        catReq,
+        requiredCourseSet,
+      );
+      const missing = (catReq.courses ?? [])
+        .map((code) => code.replace(/\s+/g, '').toUpperCase())
+        .filter((code) => !normalizedCompletedCodes.includes(code));
 
       return {
         category: cat,
@@ -73,7 +89,7 @@ export class GraduationService {
       };
     });
 
-    const pathProgresses = req?.paths ? this.computePathProgress(req.paths, completedCodes) : [];
+    const pathProgresses = req?.paths ? this.computePathProgress(req.paths, normalizedCompletedCodes) : [];
     const totalRequiredEcts = req?.totalCredit ?? DEFAULT_TOTAL_CREDIT;
     const remaining = Math.max(0, totalRequiredEcts - totalCompletedEcts);
     const avgCreditsPerSemester = 15;
@@ -94,7 +110,12 @@ export class GraduationService {
     };
   }
 
-  private sumCategory(category: string, courses: Record<string, unknown>[]) {
+  private sumCategory(
+    category: string,
+    courses: Record<string, unknown>[],
+    req?: CategoryReq,
+    requiredCourseSet: Set<string> = new Set(),
+  ) {
     if (category === 'engineering') {
       return courses.reduce((sum, c) => {
         const cats = (c.categories as Record<string, number>) ?? {};
@@ -108,18 +129,32 @@ export class GraduationService {
       }, 0);
     }
 
-    const catCourses = courses.filter((c) => this.matchesCategory(category, c));
+    const catCourses = courses.filter((c) => this.matchesCategory(category, c, req, requiredCourseSet));
     return catCourses.reduce((s, c) => {
       const doc = c as Record<string, unknown>;
       return s + Number(doc.suCredit ?? doc.su_credit ?? 0);
     }, 0);
   }
 
-  private matchesCategory(category: string, course: Record<string, unknown>) {
+  private matchesCategory(
+    category: string,
+    course: Record<string, unknown>,
+    req?: CategoryReq,
+    requiredCourseSet: Set<string> = new Set(),
+  ) {
     const cats = (course.categories as Record<string, unknown>) ?? {};
     const elType = String(course.elType ?? '').toLowerCase();
+    const fullCode = String(course.fullCode ?? '').replace(/\s+/g, '').toUpperCase();
+    const ownSet = new Set((req?.courses ?? []).map((c) => c.replace(/\s+/g, '').toUpperCase()));
 
-    if (category === 'core') return Boolean(cats.isCore ?? cats.is_core);
+    if (category === 'required') {
+      if (ownSet.size > 0) return ownSet.has(fullCode);
+      return elType === 'required';
+    }
+    if (category === 'core') {
+      if (requiredCourseSet.has(fullCode)) return false;
+      return elType === 'core' || Boolean(cats.isCore ?? cats.is_core);
+    }
     if (category === 'area') return Boolean(cats.isArea ?? cats.is_area);
     if (category === 'university') return elType === 'university';
     if (category === 'free') return elType === 'free';

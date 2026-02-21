@@ -44,6 +44,8 @@ interface CourseContextEntry {
   suCredit: number;
   ects: number;
   instructors: string[];
+  lastOfferedTerms: string[];
+  likelyOfferedThisTerm: boolean | null;
 }
 
 const COURSE_ALIASES: Record<string, string[]> = {
@@ -123,7 +125,48 @@ export class RagService {
     params: AskParams,
     subject: Subject<AskChunk>,
   ) {
+    const normalizedCompleted = (params.completedCourses ?? [])
+      .map((c) => String(c).replace(/\s+/g, '').toUpperCase())
+      .filter(Boolean);
+    const exactCode = this.extractExactSingleCodeQuery(params.question);
+    if (exactCode && this.isCompletedOrEquivalent(exactCode, normalizedCompleted)) {
+      const quick = `${exactCode} dersini tamamlamis gorunuyorsun. Bu dersin devaminda bir sonraki adim icin onkosul baglantisina gore 3xx/4xx seviyesinde ilgili dersleri planlayabiliriz. Istersen \"bu dersi nasil calismaliyim\" veya \"bu donem ne almaliyim\" diye devam edebilirsin.`;
+      for (let i = 0; i < quick.length; i += 20) {
+        subject.next({
+          chunk: quick.slice(i, i + 20),
+          done: false,
+          answer: '',
+          sourceChunks: [],
+          model: this.model,
+          promptTokens: 0,
+          completionTokens: 0,
+          contextType: params.contextType ?? 'course_qa',
+        });
+      }
+      subject.next({
+        chunk: '',
+        done: true,
+        answer: quick,
+        sourceChunks: ['local_short_circuit'],
+        model: this.model,
+        promptTokens: 0,
+        completionTokens: 0,
+        contextType: params.contextType ?? 'course_qa',
+      });
+      subject.complete();
+      return;
+    }
+
     const dynamicChunks = await this.buildDynamicContextChunks(params.question);
+    const completed = normalizedCompleted;
+    if (completed.length > 0) {
+      dynamicChunks.unshift({
+        id: 'student_completed_courses',
+        score: 1,
+        metadata: { source: 'session' },
+        text: `Ogrencinin tamamladigi dersler: ${completed.join(', ')}. Bu listedeki dersleri alinmis kabul et.`,
+      });
+    }
 
     // 1. Query expansion
     const queries = this.cot.expandQuery(params.question);
@@ -163,6 +206,7 @@ export class RagService {
         messages,
         params.question,
         systemPrompt,
+        completed,
         subject,
         sourceIds,
         contextType,
@@ -171,18 +215,36 @@ export class RagService {
   }
 
   private async buildDynamicContextChunks(question: string) {
+    const codes = this.extractCourseCodes(question).slice(0, 6);
     const needCourseContext =
-      /(hoca|instructor|prof|kim|kolay|zor|zor mu|çalışmalıyım|calismaliyim|nasıl çalış|nasil calis|öneri)/i.test(question);
+      codes.length > 0 ||
+      /(hoca|instructor|prof|kim|kolay|zor|zor mu|çalışmalıyım|calismaliyim|nasıl çalış|nasil calis|öneri|aciliyor|acik|cakisma|cakisiyor)/i.test(question);
     if (!needCourseContext) return [];
 
     await this.ensureCourseContextLoaded();
-    const codes = this.extractCourseCodes(question).slice(0, 4);
     const chunks: Array<{ id: string; text: string; score: number; metadata: Record<string, string> }> = [];
 
     for (const code of codes) {
       const entry = this.courseContext.get(code);
-      if (!entry) continue;
+      if (!entry) {
+        const level = Number((code.match(/\d{3,5}/) ?? ['0'])[0]);
+        const tier = level >= 400 ? 'ileri seviye' : level >= 300 ? 'orta-ileri seviye' : level >= 200 ? 'orta seviye' : 'temel seviye';
+        chunks.push({
+          id: `local_${code}_fallback`,
+          score: 0.82,
+          metadata: { source: 'local_course_code_fallback', code },
+          text: `Ders kodu: ${code}. Bu ders ${tier} bir derstir. Onkosul ve acilma bilgisi baglamda yoksa kesin ifade kullanma; ogrencinin tamamladigi dersleri dikkate alarak cevapla.`,
+        });
+        continue;
+      }
       const shortDesc = entry.description ? entry.description.replace(/\s+/g, ' ').slice(0, 500) : 'Açıklama bulunamadı.';
+      const offerTerms = entry.lastOfferedTerms.length ? entry.lastOfferedTerms.slice(0, 3).join(', ') : 'bilinmiyor';
+      const availability =
+        entry.likelyOfferedThisTerm === null
+          ? 'bilinmiyor'
+          : entry.likelyOfferedThisTerm
+            ? 'muhtemelen acik'
+            : 'bu donem acik gorunmuyor';
       chunks.push({
         id: `local_${code}`,
         score: 1,
@@ -191,6 +253,7 @@ export class RagService {
           `Ders: ${entry.headerText || `${entry.code} ${entry.title}`}`,
           `SU kredi: ${entry.suCredit || 0} | ECTS: ${entry.ects || 0}`,
           `Dersi veren(son dönem): ${entry.instructors.length ? entry.instructors.join(', ') : 'bilinmiyor'}`,
+          `Bu donem acilma durumu: ${availability}. Son acildigi donemler: ${offerTerms}`,
           `Açıklama: ${shortDesc}`,
         ].join('\n'),
       });
@@ -222,7 +285,8 @@ export class RagService {
   private async fetchWebSnippet(question: string): Promise<string> {
     if (!/(hoca|instructor|prof|kim|hangi alanda|nasıl çalış|kolay|zor)/i.test(question)) return '';
     try {
-      const endpoint = `https://api.duckduckgo.com/?q=${encodeURIComponent(`Sabancı Üniversitesi ${question}`)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
+      const query = `Sabanci Universitesi ${question}`;
+      const endpoint = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
       const res = await fetch(endpoint);
       if (!res.ok) return '';
       const data = (await res.json()) as {
@@ -232,7 +296,14 @@ export class RagService {
       const abstract = (data.AbstractText ?? '').trim();
       if (abstract) return abstract.slice(0, 420);
       const related = data.RelatedTopics?.map((x) => x.Text ?? '').find((x) => x.trim().length > 0) ?? '';
-      return related.slice(0, 420);
+      if (related) return related.slice(0, 420);
+      const htmlRes = await fetch(`https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+      if (!htmlRes.ok) return '';
+      const html = await htmlRes.text();
+      const snippets = Array.from(html.matchAll(/<a[^>]*class=\"result__snippet\"[^>]*>(.*?)<\/a>/g))
+        .map((m) => String(m[1] ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      return (snippets[0] ?? '').slice(0, 420);
     } catch {
       return '';
     }
@@ -251,6 +322,19 @@ export class RagService {
       }
     }
     return Array.from(set);
+  }
+
+  private extractExactSingleCodeQuery(question: string): string | null {
+    const normalized = String(question ?? '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!normalized) return null;
+    if (!/^[A-ZÇĞİÖŞÜ]{2,6}\d{3,5}[A-Z]?$/.test(normalized)) return null;
+    return normalized;
+  }
+
+  private isCompletedOrEquivalent(code: string, completed: string[]) {
+    if (completed.includes(code)) return true;
+    const aliases = COURSE_ALIASES[code] ?? [];
+    return aliases.some((a) => completed.includes(a));
   }
 
   private async ensureCourseContextLoaded() {
@@ -291,9 +375,15 @@ export class RagService {
           description?: string;
           su_credits?: number;
           ects?: number;
+          last_offered_terms?: Array<{ term?: string }>;
         };
         const code = (row.course_id ?? '').toUpperCase();
         if (!code) continue;
+        const terms = Array.isArray(row.last_offered_terms)
+          ? row.last_offered_terms
+              .map((x) => String(x.term ?? '').trim())
+              .filter((x) => x.length > 0)
+          : [];
         this.courseContext.set(code, {
           code,
           title: row.title ?? '',
@@ -302,6 +392,8 @@ export class RagService {
           suCredit: Number(row.su_credits ?? 0),
           ects: Number(row.ects ?? 0),
           instructors: [],
+          lastOfferedTerms: terms,
+          likelyOfferedThisTerm: this.isLikelyOfferedInCurrentTerm(terms),
         });
       } catch {
         // ignore
@@ -345,6 +437,8 @@ export class RagService {
             suCredit: 0,
             ects: 0,
             instructors: Array.from(new Set(instructors)),
+            lastOfferedTerms: [],
+            likelyOfferedThisTerm: null,
           });
           continue;
         }
@@ -377,23 +471,37 @@ export class RagService {
     return `Ogretim uyesi: ${best.name}. Son donem verilerinde gecen dersler: ${best.courses.join(', ')}.`;
   }
 
+  private isLikelyOfferedInCurrentTerm(terms: string[]) {
+    if (terms.length === 0) return null;
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    let currentTerm = '';
+    if (month >= 9) currentTerm = `Fall ${year}-${year + 1}`;
+    else if (month >= 2) currentTerm = `Spring ${year - 1}-${year}`;
+    else currentTerm = `Fall ${year - 1}-${year}`;
+    return terms.some((t) => t === currentTerm);
+  }
+
   private async streamByProvider(
     messages: MistralMessage[],
     question: string,
     systemPrompt: string,
+    completedCourses: string[],
     subject: Subject<AskChunk>,
     sourceIds: string[],
     contextType: string,
   ) {
     if (this.provider === 'gemini') {
-      await this.streamGemini(question, systemPrompt, subject, sourceIds, contextType);
+      await this.streamGemini(question, systemPrompt, completedCourses, subject, sourceIds, contextType);
       return;
     }
-    await this.streamMistral(messages, subject, sourceIds, contextType);
+    await this.streamMistral(messages, completedCourses, subject, sourceIds, contextType);
   }
 
   private async streamMistral(
     messages: MistralMessage[],
+    completedCourses: string[],
     subject: Subject<AskChunk>,
     sourceIds: string[],
     contextType: string,
@@ -434,10 +542,11 @@ export class RagService {
       for (const line of lines) {
         const jsonStr = line.slice(6).trim();
         if (jsonStr === '[DONE]') {
+          const sanitized = this.sanitizeAnswerWithCompleted(fullAnswer, completedCourses);
           subject.next({
             chunk: '',
             done: true,
-            answer: fullAnswer,
+            answer: sanitized,
             sourceChunks: sourceIds,
             model: this.model,
             promptTokens,
@@ -475,10 +584,11 @@ export class RagService {
     }
 
     // Stream beklenmedik şekilde bittiyse
+    const sanitized = this.sanitizeAnswerWithCompleted(fullAnswer, completedCourses);
     subject.next({
       chunk: '',
       done: true,
-      answer: fullAnswer,
+      answer: sanitized,
       sourceChunks: sourceIds,
       model: this.model,
       promptTokens,
@@ -491,6 +601,7 @@ export class RagService {
   private async streamGemini(
     question: string,
     systemPrompt: string,
+    completedCourses: string[],
     subject: Subject<AskChunk>,
     sourceIds: string[],
     contextType: string,
@@ -546,7 +657,7 @@ export class RagService {
 
     const rawAnswer =
       data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
-    const fullAnswer = this.sanitizeAnswer(rawAnswer);
+    const fullAnswer = this.sanitizeAnswerWithCompleted(this.sanitizeAnswer(rawAnswer), completedCourses);
     const promptTokens = data.usageMetadata?.promptTokenCount ?? 0;
     const completionTokens =
       data.usageMetadata?.candidatesTokenCount ??
@@ -594,6 +705,21 @@ export class RagService {
     }
     out = out.replace(/^(\*\*Adım adım düşün:?\*\*|Adım adım düşün:?)\s*/i, '').trim();
     return out;
+  }
+
+  private sanitizeAnswerWithCompleted(answer: string, completedCourses: string[]) {
+    if (!answer) return answer;
+    if (!completedCourses || completedCourses.length === 0) return answer;
+    const wrongMemory =
+      /(hic\s+ders\s+almad|hiç\s+ders\s+almad|hen[uü]z\s+tamamlanm[ıi]ş\s+ders(?:in|iniz)?\s+(?:yok|bulunmad[ıi][ğg][ıi])|tamamlanm[ıi]ş\s+ders(?:in|iniz)?\s+olmad[ıi][ğg][ıi]|ilk\s+d[öo]nem)/i;
+    if (!wrongMemory.test(answer)) return answer;
+    let fixed = answer
+      .replace(/hen[uü]z[^.?!]*tamamlanm[ıi]ş[^.?!]*[.?!]/gi, '')
+      .replace(/ilk\s+d[öo]nem[^.?!]*[.?!]/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (!fixed) fixed = answer;
+    return `Tamamladigin dersleri dikkate aliyorum: ${completedCourses.join(', ')}.\n\n${fixed}`.trim();
   }
 
   private async discoverGeminiModels(method: 'generateContent' | 'embedContent') {
