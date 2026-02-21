@@ -64,15 +64,15 @@ body {
   /* Enhanced glass for cards */
   .glass-ultra {
     background:
-      radial-gradient(120% 120% at 10% 0%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 42%, rgba(255,255,255,0.02) 100%),
-      linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
-    border: 1px solid rgba(255, 255, 255, 0.22);
+      radial-gradient(140% 120% at 12% 0%, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.09) 40%, rgba(255,255,255,0.03) 100%),
+      linear-gradient(148deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06));
+    border: 1px solid rgba(255, 255, 255, 0.28);
     box-shadow:
-      0 16px 48px rgba(0, 0, 0, 0.22),
-      inset 0 1px 0 rgba(255, 255, 255, 0.28),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(32px) saturate(170%);
-    -webkit-backdrop-filter: blur(32px) saturate(170%);
+      0 18px 54px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(34px) saturate(180%);
+    -webkit-backdrop-filter: blur(34px) saturate(180%);
   }
 
   .glass-hover {

@@ -11,16 +11,17 @@ import { api, Course } from '@/lib/api'
 interface Semester { number: number; courses: Course[]; totalEcts: number }
 
 function buildDemoSemesters(courses: Course[]): Semester[] {
-  // Basit dağılım: ilk 30 ECTS'i dönem 1'e, sonraki 30'u dönem 2'ye...
+  // Basit dağılım: dönem başına yaklaşık 20 SU kredi hedefi
   const sems: Semester[] = Array.from({ length: 5 }, (_, i) => ({
     number: i + 1, courses: [], totalEcts: 0,
   }))
   let ects = 0, si = 0
   for (const c of courses.slice(0, 25)) {
-    if (ects + c.ects > 30 && si < 4) { si++; ects = 0 }
+    const su = Number(c.suCredit ?? 0)
+    if (ects + su > 20 && si < 4) { si++; ects = 0 }
     sems[si].courses.push(c)
-    sems[si].totalEcts += c.ects
-    ects += c.ects
+    sems[si].totalEcts += su
+    ects += su
   }
   return sems
 }
@@ -80,15 +81,15 @@ function PlanContent() {
           <p className="text-lg font-bold text-white">{major}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-white/50">Planlanan ECTS</p>
-          <p className="text-lg font-bold text-su-300">{totalEcts} / 240</p>
+          <p className="text-sm text-white/50">Planlanan SU Kredi</p>
+          <p className="text-lg font-bold text-su-300">{totalEcts} / 125</p>
         </div>
         {/* Genel ECTS bar */}
         <div className="flex-1 mx-8 h-2 bg-white/10 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-su-700 to-su-300 rounded-full"
             initial={{ width: 0 }}
-            animate={{ width: `${Math.min((totalEcts / 240) * 100, 100)}%` }}
+            animate={{ width: `${Math.min((totalEcts / 125) * 100, 100)}%` }}
             transition={{ duration: 1, ease: 'easeOut' }}
           />
         </div>

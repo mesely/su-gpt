@@ -46,6 +46,11 @@ interface CourseContextEntry {
   instructors: string[];
 }
 
+const COURSE_ALIASES: Record<string, string[]> = {
+  DSA210: ['CS210'],
+  CS210: ['DSA210'],
+};
+
 export interface AskParams {
   question: string;
   studentId: string;
@@ -240,6 +245,11 @@ export class RagService {
     while ((m = rx.exec(question)) !== null) {
       set.add(m[1].replace(/\s+/g, '').toUpperCase());
     }
+    for (const code of Array.from(set)) {
+      for (const alias of COURSE_ALIASES[code] ?? []) {
+        set.add(alias);
+      }
+    }
     return Array.from(set);
   }
 
@@ -249,10 +259,18 @@ export class RagService {
 
     const baseDir = path.join(__dirname, '../../../course-service/data');
     const coursePagePath = path.join(baseDir, 'all_coursepage_info.jsonl');
-    const schedulePath = path.join(baseDir, 'schedule/202502.jsonl');
+    const scheduleDir = path.join(baseDir, 'schedule');
 
     await this.loadCoursePageInfo(coursePagePath);
-    await this.loadScheduleInstructors(schedulePath);
+    await this.loadScheduleInstructorsFromDir(scheduleDir);
+  }
+
+  private async loadScheduleInstructorsFromDir(dirPath: string) {
+    if (!fs.existsSync(dirPath)) return;
+    const files = fs.readdirSync(dirPath).filter((f) => f.endsWith('.jsonl')).sort();
+    for (const file of files) {
+      await this.loadScheduleInstructors(path.join(dirPath, file));
+    }
   }
 
   private async loadCoursePageInfo(filePath: string) {
@@ -343,13 +361,13 @@ export class RagService {
 
   private findInstructorContext(question: string): string {
     if (!/(kim|hoca|prof|instructor)/i.test(question)) return '';
-    const lower = question.toLowerCase();
+    const lower = question.toLowerCase().replace(/\s+/g, ' ');
     let best: { name: string; courses: string[] } | null = null;
     for (const [name, courses] of this.instructorCourses.entries()) {
       const parts = name.split(/\s+/).filter((p) => p.length > 2);
       if (parts.length === 0) continue;
       const hitCount = parts.filter((p) => lower.includes(p)).length;
-      if (hitCount < 2) continue;
+      if (hitCount < 1) continue;
       const arr = Array.from(courses).slice(0, 8);
       if (!best || arr.length > best.courses.length) {
         best = { name, courses: arr };
@@ -526,8 +544,9 @@ export class RagService {
       throw new Error(`Gemini API hatası: ${lastError}`);
     }
 
-    const fullAnswer =
+    const rawAnswer =
       data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+    const fullAnswer = this.sanitizeAnswer(rawAnswer);
     const promptTokens = data.usageMetadata?.promptTokenCount ?? 0;
     const completionTokens =
       data.usageMetadata?.candidatesTokenCount ??
@@ -558,6 +577,23 @@ export class RagService {
       contextType,
     });
     subject.complete();
+  }
+
+  private sanitizeAnswer(answer: string) {
+    if (!answer) return answer;
+    let out = answer;
+    const cotBlocks = [
+      /Adım adım düşün[\s\S]*?YANIT:?/i,
+      /Adım adım düşünce[\s\S]*?YANIT:?/i,
+      /Chain of Thought[\s\S]*?YANIT:?/i,
+    ];
+    for (const rx of cotBlocks) {
+      if (rx.test(out)) {
+        out = out.replace(rx, '').trim();
+      }
+    }
+    out = out.replace(/^(\*\*Adım adım düşün:?\*\*|Adım adım düşün:?)\s*/i, '').trim();
+    return out;
   }
 
   private async discoverGeminiModels(method: 'generateContent' | 'embedContent') {

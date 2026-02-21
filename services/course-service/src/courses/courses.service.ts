@@ -125,11 +125,19 @@ export class CoursesService {
     const dataRoot = path.join(__dirname, '../../data');
     const coursePath = path.join(dataRoot, 'all_coursepage_info.jsonl');
     const basicPath = path.join(dataRoot, 'basic_science_credits.jsonl');
-    const schedulePath = path.join(dataRoot, 'schedule/202502.jsonl');
+    const scheduleDir = path.join(dataRoot, 'schedule');
 
     await this.loadBasicCredits(basicPath);
-    await this.loadFallbackInstructors(schedulePath);
+    await this.loadFallbackInstructorsFromDir(scheduleDir);
     await this.loadCourseCatalog(coursePath);
+  }
+
+  private async loadFallbackInstructorsFromDir(dirPath: string) {
+    if (!fs.existsSync(dirPath)) return;
+    const files = fs.readdirSync(dirPath).filter((f) => f.endsWith('.jsonl')).sort();
+    for (const file of files) {
+      await this.loadFallbackInstructors(path.join(dirPath, file));
+    }
   }
 
   private async loadBasicCredits(filePath: string) {

@@ -28,21 +28,30 @@ interface CourseServiceClient {
   }): Observable<unknown>;
   getGraduationStatus(data: {
     student_id: string;
+    studentId?: string;
     major: string;
     completed_courses: string[];
+    completedCourses?: string[];
     current_semester: number;
+    currentSemester?: number;
   }): Observable<unknown>;
   getSemesterPlan(data: {
     student_id: string;
+    studentId?: string;
     major: string;
     completed_courses: string[];
+    completedCourses?: string[];
     target_semester: number;
+    targetSemester?: number;
     max_ects: number;
+    maxEcts?: number;
   }): Observable<unknown>;
   getPathRecommendation(data: {
     student_id: string;
+    studentId?: string;
     major: string;
     completed_courses: string[];
+    completedCourses?: string[];
   }): Observable<unknown>;
 }
 
@@ -95,9 +104,12 @@ export class CoursesController implements OnModuleInit {
     return firstValueFrom(
       this.svc.getGraduationStatus({
         student_id: studentId,
+        studentId,
         major: major || req.user.major,
         completed_courses: completedCourses,
+        completedCourses,
         current_semester: parseInt(semester, 10),
+        currentSemester: parseInt(semester, 10),
       }),
     );
   }
@@ -115,10 +127,14 @@ export class CoursesController implements OnModuleInit {
     return firstValueFrom(
       this.svc.getSemesterPlan({
         student_id: studentId,
+        studentId,
         major: major || req.user.major,
         completed_courses: completedCourses,
+        completedCourses,
         target_semester: parseInt(targetSemester, 10),
+        targetSemester: parseInt(targetSemester, 10),
         max_ects: parseInt(maxEcts, 10),
+        maxEcts: parseInt(maxEcts, 10),
       }),
     );
   }
@@ -138,10 +154,14 @@ export class CoursesController implements OnModuleInit {
     return firstValueFrom(
       this.svc.getSemesterPlan({
         student_id: studentId,
+        studentId,
         major: body.major || req.user.major,
         completed_courses: body.completedCourses ?? [],
+        completedCourses: body.completedCourses ?? [],
         target_semester: body.targetSemester ?? 1,
+        targetSemester: body.targetSemester ?? 1,
         max_ects: body.maxEcts ?? 30,
+        maxEcts: body.maxEcts ?? 30,
       }),
     );
   }
@@ -157,8 +177,10 @@ export class CoursesController implements OnModuleInit {
     return firstValueFrom(
       this.svc.getPathRecommendation({
         student_id: studentId,
+        studentId,
         major: major || req.user.major,
         completed_courses: completedCourses,
+        completedCourses,
       }),
     );
   }

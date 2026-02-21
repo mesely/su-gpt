@@ -52,7 +52,10 @@ export class GraduationService {
     const completedCourses = await this.coursesService.findByCodes(completedCodes);
 
     const totalCompletedEcts = completedCourses.reduce(
-      (sum, c) => sum + ((c as unknown as Record<string, number>).suCredit ?? 0),
+      (sum, c) => {
+        const doc = c as unknown as Record<string, unknown>;
+        return sum + Number(doc.suCredit ?? doc.su_credit ?? 0);
+      },
       0,
     );
 
@@ -74,7 +77,10 @@ export class GraduationService {
     const totalRequiredEcts = req?.totalCredit ?? DEFAULT_TOTAL_CREDIT;
     const remaining = Math.max(0, totalRequiredEcts - totalCompletedEcts);
     const avgCreditsPerSemester = 15;
-    const estimatedSemestersLeft = Math.max(0, Math.round(remaining / avgCreditsPerSemester));
+    const estimatedSemestersLeft =
+      totalCompletedEcts <= 0
+        ? 8
+        : Math.max(0, Math.ceil(remaining / avgCreditsPerSemester));
 
     return {
       studentId,
@@ -98,20 +104,23 @@ export class GraduationService {
     if (category === 'basicScience') {
       return courses.reduce((sum, c) => {
         const cats = (c.categories as Record<string, number>) ?? {};
-        return sum + Number(cats.basicScience ?? 0);
+        return sum + Number(cats.basicScience ?? cats.basic_science ?? 0);
       }, 0);
     }
 
     const catCourses = courses.filter((c) => this.matchesCategory(category, c));
-    return catCourses.reduce((s, c) => s + Number(c.suCredit ?? 0), 0);
+    return catCourses.reduce((s, c) => {
+      const doc = c as Record<string, unknown>;
+      return s + Number(doc.suCredit ?? doc.su_credit ?? 0);
+    }, 0);
   }
 
   private matchesCategory(category: string, course: Record<string, unknown>) {
     const cats = (course.categories as Record<string, unknown>) ?? {};
     const elType = String(course.elType ?? '').toLowerCase();
 
-    if (category === 'core') return Boolean(cats.isCore);
-    if (category === 'area') return Boolean(cats.isArea);
+    if (category === 'core') return Boolean(cats.isCore ?? cats.is_core);
+    if (category === 'area') return Boolean(cats.isArea ?? cats.is_area);
     if (category === 'university') return elType === 'university';
     if (category === 'free') return elType === 'free';
     return false;

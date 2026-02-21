@@ -26,7 +26,7 @@ export function CourseCard({ course, index = 0 }: CourseCardProps) {
     >
       <div className="flex items-start justify-between gap-1">
         <span className="font-bold text-su-300 text-sm">{course.fullCode}</span>
-        <span className="text-xs text-white/50">{course.ects} ECTS</span>
+        <span className="text-xs text-white/50">{course.suCredit} SU</span>
       </div>
       <p className="text-xs text-white/80 leading-snug line-clamp-2">{course.name}</p>
       <div className="flex items-center gap-1 flex-wrap mt-0.5">

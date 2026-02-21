@@ -47,14 +47,18 @@ export class CoursesController {
   async getGraduationStatus(data: {
     student_id: string;
     major: string;
-    completed_courses: string[];
+    completed_courses?: string[];
+    completedCourses?: string[];
     current_semester: number;
+    currentSemester?: number;
   }) {
+    const completedCourses = data.completed_courses ?? data.completedCourses ?? [];
+    const currentSemester = data.current_semester ?? data.currentSemester ?? 1;
     const status = await this.graduationService.getGraduationStatus(
       data.student_id,
       data.major,
-      data.completed_courses ?? [],
-      data.current_semester ?? 1,
+      completedCourses,
+      currentSemester,
     );
 
     return {
@@ -85,11 +89,13 @@ export class CoursesController {
   async getPathRecommendation(data: {
     student_id: string;
     major: string;
-    completed_courses: string[];
+    completed_courses?: string[];
+    completedCourses?: string[];
   }) {
+    const completedCourses = data.completed_courses ?? data.completedCourses ?? [];
     const rec = this.pathService.getPathRecommendation(
       data.major,
-      data.completed_courses ?? [],
+      completedCourses,
     );
     return {
       pathId: rec.pathId,
@@ -104,13 +110,17 @@ export class CoursesController {
   async getSemesterPlan(data: {
     student_id: string;
     major: string;
-    completed_courses: string[];
+    completed_courses?: string[];
+    completedCourses?: string[];
     target_semester: number;
+    targetSemester?: number;
     max_ects: number;
+    maxEcts?: number;
   }) {
-    const maxEcts = data.max_ects || 30;
+    const completedCourses = data.completed_courses ?? data.completedCourses ?? [];
+    const maxEcts = data.max_ects ?? data.maxEcts ?? 30;
     const allMajorCourses = await this.coursesService.findByMajor(data.major);
-    const completed = new Set(data.completed_courses ?? []);
+    const completed = new Set(completedCourses);
 
     // Alınmamış dersleri filtrele, önkoşulları karşılanmış olanları seç
     const candidates = allMajorCourses.filter((c) => {
@@ -132,7 +142,7 @@ export class CoursesController {
 
     return {
       studentId: data.student_id,
-      semester: data.target_semester,
+      semester: data.target_semester ?? data.targetSemester ?? 1,
       courses: planned.map((c) => {
         const doc = c as unknown as Record<string, unknown>;
         const cats = (doc.categories as Record<string, unknown>) ?? {};

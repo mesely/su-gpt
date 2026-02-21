@@ -22,14 +22,14 @@ export function SemesterTable({ semesters }: SemesterTableProps) {
             {/* Header */}
             <div className="glass rounded-2xl px-3 py-2 flex justify-between items-center">
               <span className="text-sm font-semibold text-white">Dönem {sem.number}</span>
-              <span className="text-xs text-su-300 font-medium">{sem.totalEcts} ECTS</span>
+              <span className="text-xs text-su-300 font-medium">{sem.totalEcts} SU</span>
             </div>
 
             {/* ECTS progress bar */}
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-su-500 to-su-300 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((sem.totalEcts / 30) * 100, 100)}%` }}
+                style={{ width: `${Math.min((sem.totalEcts / 20) * 100, 100)}%` }}
               />
             </div>
 

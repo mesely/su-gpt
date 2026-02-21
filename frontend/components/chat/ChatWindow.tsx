@@ -407,13 +407,13 @@ function prerequisiteSatisfied(
   code: string,
   map: Map<string, Course>,
   completed: Set<string>,
-  planned: Set<string>,
+  _planned: Set<string>,
 ) {
   const course = map.get(code)
   if (!course || !course.prerequisites || course.prerequisites.length === 0) return true
   return course.prerequisites.every((req) => {
     const normalized = String(req).replace(/\s+/g, '').toUpperCase()
-    return completed.has(normalized) || planned.has(normalized)
+    return completed.has(normalized)
   })
 }
 
@@ -523,6 +523,7 @@ export function ChatWindow() {
   const [input, setInput] = useState('')
   const [wizard, setWizard] = useState<WizardData>(INITIAL_WIZARD)
   const [showPanel, setShowPanel] = useState(false)
+  const [selectionReady, setSelectionReady] = useState(false)
   const [coursePanelCategory, setCoursePanelCategory] = useState<'all' | 'core' | 'area' | 'basicScience' | 'free' | 'university'>('all')
   const [courseMap, setCourseMap] = useState<Map<string, Course>>(new Map())
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -542,8 +543,9 @@ export function ChatWindow() {
       .then((data) => {
         if (cancelled) return
         syncFromServer(data)
+        setSelectionReady(true)
       })
-      .catch(() => {})
+      .catch(() => { if (!cancelled) setSelectionReady(true) })
     return () => { cancelled = true }
   }, [token, studentId, syncFromServer])
 
@@ -647,12 +649,21 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
   }, [hydrateCourses, selectedCourses])
 
   const runGraduationAnalysis = useCallback(async (major: string) => {
+    let completed = selectedCourses
+    if (completed.length === 0 && token && studentId) {
+      try {
+        const snap = await api.getSelections(token)
+        if (Array.isArray(snap.selectedCourses) && snap.selectedCourses.length > 0) {
+          completed = snap.selectedCourses
+        }
+      } catch { /* ignore */ }
+    }
     if (token && studentId) {
       try {
         const status = await api.getGraduationStatus(token, studentId, {
           major,
           semester: '1',
-          completed: selectedCourses.join(','),
+          completed: completed.join(','),
         })
         const text = await formatGraduationReply(major, status)
         await streamWizardReply(text)
@@ -673,6 +684,7 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
     const helper = SUPPORTER_COURSES[difficulty]
     const rawCandidates = Array.from(new Set([...coreNeed, ...trackNeed, ...helper]))
       .filter((c) => !selectedCourses.includes(c))
+      .filter((c) => !inProgressCourses.includes(c))
       .filter((c) => courseLevel(c) >= 2)
     const map = await hydrateCourses(rawCandidates)
     const completedSet = new Set(selectedCourses.map((c) => c.toUpperCase()))
@@ -731,7 +743,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
       ,
       recommendedCodes: finalList,
     }
-  }, [hydrateCourses, selectedCourses, wizard.profileTags])
+  }, [hydrateCourses, inProgressCourses, selectedCourses, wizard.profileTags])
 
   const formatPathReply = useCallback(async (major: string, trackIds: string[], quizScores?: Record<string, number>) => {
     const tracks = (quizScores ? rankTracksByQuiz(major, quizScores) : rankTracksByProfile(major, wizard.profileTags))
@@ -794,6 +806,10 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
   // Graduation wizard: no longer asks major — uses authMajor directly
   const startGraduationWizard = useCallback(() => {
     if (isStreaming) return
+    if (token && !selectionReady) {
+      addMessage({ role: 'assistant', content: 'Ders secimlerin yukleniyor, birkac saniye sonra tekrar dene.', isWizard: true })
+      return
+    }
     const major = authMajor || 'CS'
     if (isComplete && selectedCourses.length > 0) {
       addMessage({ role: 'assistant', content: 'Mezuniyet analizi hesaplaniyor...', isWizard: true })
@@ -805,7 +821,7 @@ Farkli bir kombinasyon icin "daha kolay" veya "daha zor" yaz.`
       setCoursePanelCategory('all')
       setShowPanel(true)
     }
-  }, [isStreaming, authMajor, isComplete, selectedCourses.length, addMessage, runGraduationAnalysis])
+  }, [isStreaming, token, selectionReady, authMajor, isComplete, selectedCourses.length, addMessage, runGraduationAnalysis])
 
   const startPlanWizard = useCallback(() => {
     if (isStreaming) return
