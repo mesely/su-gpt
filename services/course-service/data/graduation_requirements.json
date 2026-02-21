@@ -9,10 +9,17 @@
       },
       "core": {
         "minCredit": 31,
-        "courses": ["CS201", "CS204", "CS300", "CS301", "CS303", "CS306", "CS404"]
+        "courses": ["CS201", "CS204", "CS300", "CS301", "CS303", "CS306", "CS404", "MATH201", "MATH203", "MATH204"]
       },
       "area": {
         "minCredit": 21,
+        "courses": [
+          "CS305", "CS307", "CS308", "CS310", "CS400",
+          "CS401", "CS403", "CS405", "CS409", "CS411",
+          "CS412", "CS414", "CS415", "CS419", "CS432",
+          "CS436", "CS437", "CS438", "CS445", "CS447",
+          "CS449", "CS455"
+        ],
         "pools": ["NLP_PATH", "CV_PATH", "SYSTEMS_PATH"]
       },
       "basicScience": { "minCredit": 24 },

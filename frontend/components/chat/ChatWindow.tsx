@@ -379,6 +379,13 @@ const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
   hard:     ['MATH306', 'ENS211'],
 }
 
+const NOT_OFFERED_THIS_TERM = new Set(['CS419'])
+
+function extractCourseCodeFromText(text: string): string | null {
+  const m = text.toUpperCase().match(/\b([A-ZÇĞİÖŞÜ]{2,6}\s?\d{3,5}[A-Z]?)\b/)
+  return m ? m[1].replace(/\s+/g, '') : null
+}
+
 function detectIntent(question: string): IntentType {
   const q = question.toLowerCase().trim()
   if (!q) return null
@@ -717,6 +724,8 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
       .filter((c) => !selectedCourses.includes(c))
       .filter((c) => !inProgressCourses.includes(c))
       .filter((c) => courseLevel(c) >= 2)
+      .filter((c) => courseLevel(c) <= 4)
+      .filter((c) => !NOT_OFFERED_THIS_TERM.has(c))
     const map = await hydrateCourses(rawCandidates)
     const completedSet = new Set(selectedCourses.map((c) => c.toUpperCase()))
     const targetLevels = rankCourseLevels(selectedCourses, difficulty)
@@ -751,6 +760,8 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
         .filter((c) => !selectedCourses.includes(c))
         .filter((c) => !inProgressCourses.includes(c))
         .filter((c) => courseLevel(c) >= 2)
+        .filter((c) => courseLevel(c) <= 4)
+        .filter((c) => !NOT_OFFERED_THIS_TERM.has(c))
       const fullMap = await hydrateCourses(expanded.slice(0, 300))
       for (const code of expanded) {
         if (finalList.length >= maxCourses) break
@@ -1123,6 +1134,34 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
       return startPathWizard()
     }
 
+    if (/(cs\s*419)/i.test(lowered) && /(acilmiyor|acik degil|yerine|alternatif)/i.test(lowered)) {
+      addMessage({ role: 'user', content: cleaned })
+      addMessage({
+        role: 'assistant',
+        content:
+          'CS419 bu donem acik degilse alternatifleri hedefe gore secelim:\n' +
+          '1. Computer Vision odakli: EE417, CS405\n' +
+          '2. AI/NLP odakli: CS445, CS455\n' +
+          '3. Systems/Software odakli: CS403, CS436\n' +
+          '4. Alan disi destek: MATH306 veya IE305\n' +
+          'Hedefini yaz, uygun kombinasyonu onkosul durumuna gore netlestireyim.',
+      })
+      return
+    }
+
+    const asksStudy = /(bu dersi nasil calismaliyim|nasil calismaliyim|how should i study)/i.test(lowered)
+    const asksDifficulty = /(bu ders kolay mi zor mu|kolay mi zor mu|zor mu kolay mi)/i.test(lowered)
+    if ((asksStudy || asksDifficulty) && !extractCourseCodeFromText(cleaned)) {
+      addMessage({ role: 'user', content: cleaned })
+      addMessage({
+        role: 'assistant',
+        content: asksStudy
+          ? 'Hangi ders icin calisma plani istiyorsun? Ornek: `CS419` veya `MATH203`.'
+          : 'Hangi dersin zorlugunu soruyorsun? Ornek: `CS300` veya `IF100`.',
+      })
+      return
+    }
+
     setWizard(INITIAL_WIZARD)
     sendRag(cleaned)
   }, [addMessage, authMajor, handleWizardSelect, inProgressCourses, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
@@ -1251,6 +1290,22 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
             )}
           </AnimatePresence>
 
+          {wizard.step === null && inProgressCourses.length > 0 && (
+            <WizardCard key="plan-actions">
+              <p className="text-xs text-white/50 mb-2">Plan revize secenekleri</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => dispatchInput('core derslerimi degistir')} className="glass rounded-xl px-3 py-1.5 text-xs">Core degistir</button>
+                <button onClick={() => dispatchInput('area derslerimi degistir')} className="glass rounded-xl px-3 py-1.5 text-xs">Area degistir</button>
+                <button onClick={() => dispatchInput('free derslerimi degistir')} className="glass rounded-xl px-3 py-1.5 text-xs">Free degistir</button>
+                <button onClick={() => dispatchInput('daha kolay')} className="glass rounded-xl px-3 py-1.5 text-xs">Daha kolay</button>
+                <button onClick={() => dispatchInput('daha dengeli')} className="glass rounded-xl px-3 py-1.5 text-xs">Daha dengeli</button>
+                <button onClick={() => dispatchInput('daha zor')} className="glass rounded-xl px-3 py-1.5 text-xs">Daha zor</button>
+                <button onClick={() => dispatchInput('daha cs odakli')} className="glass rounded-xl px-3 py-1.5 text-xs">CS odakli</button>
+                <button onClick={() => dispatchInput('alan odakli')} className="glass rounded-xl px-3 py-1.5 text-xs">Alan odakli</button>
+              </div>
+            </WizardCard>
+          )}
+
           <div ref={bottomRef} />
         </div>
 
@@ -1286,26 +1341,6 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
               className="text-xs text-white/40 hover:text-white/80 px-2"
             >
               Derslerimi Guncelle
-            </button>
-            <button
-              onClick={() => {
-                setCoursePanelCategory('core')
-                setShowPanel(true)
-                setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
-              }}
-              className="text-xs text-white/40 hover:text-white/80 px-2"
-            >
-              Core Derslerimi Degistir
-            </button>
-            <button
-              onClick={() => {
-                setCoursePanelCategory('free')
-                setShowPanel(true)
-                setWizard((w) => ({ ...w, type: 'plan', step: 'course-select', major: w.major || authMajor }))
-              }}
-              className="text-xs text-white/40 hover:text-white/80 px-2"
-            >
-              Serbest Derslerimi Degistir
             </button>
             <button onClick={clearMessages} className="text-xs text-white/30 hover:text-white/60 px-2">
               Temizle

@@ -116,6 +116,16 @@ export class GraduationService {
     req?: CategoryReq,
     requiredCourseSet: Set<string> = new Set(),
   ) {
+    const reqCodes = new Set((req?.courses ?? []).map((c) => c.replace(/\s+/g, '').toUpperCase()));
+    if (reqCodes.size > 0 && (category === 'required' || category === 'core' || category === 'area')) {
+      return courses.reduce((sum, c) => {
+        const code = String(c.fullCode ?? '').replace(/\s+/g, '').toUpperCase();
+        if (!reqCodes.has(code)) return sum;
+        const doc = c as Record<string, unknown>;
+        return sum + Number(doc.suCredit ?? doc.su_credit ?? 0);
+      }, 0);
+    }
+
     if (category === 'engineering') {
       return courses.reduce((sum, c) => {
         const cats = (c.categories as Record<string, number>) ?? {};

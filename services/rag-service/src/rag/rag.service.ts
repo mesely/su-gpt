@@ -125,9 +125,37 @@ export class RagService {
     params: AskParams,
     subject: Subject<AskChunk>,
   ) {
+    await this.ensureCourseContextLoaded();
     const normalizedCompleted = (params.completedCourses ?? [])
       .map((c) => String(c).replace(/\s+/g, '').toUpperCase())
       .filter(Boolean);
+    const instructorEarly = await this.buildInstructorDirectAnswer(params.question);
+    if (instructorEarly) {
+      for (let i = 0; i < instructorEarly.length; i += 20) {
+        subject.next({
+          chunk: instructorEarly.slice(i, i + 20),
+          done: false,
+          answer: '',
+          sourceChunks: [],
+          model: this.model,
+          promptTokens: 0,
+          completionTokens: 0,
+          contextType: params.contextType ?? 'course_qa',
+        });
+      }
+      subject.next({
+        chunk: '',
+        done: true,
+        answer: instructorEarly,
+        sourceChunks: ['local_instructor_direct'],
+        model: this.model,
+        promptTokens: 0,
+        completionTokens: 0,
+        contextType: params.contextType ?? 'course_qa',
+      });
+      subject.complete();
+      return;
+    }
     const exactCode = this.extractExactSingleCodeQuery(params.question);
     if (exactCode && this.isCompletedOrEquivalent(exactCode, normalizedCompleted)) {
       const quick = `${exactCode} dersini tamamlamis gorunuyorsun. Bu dersin devaminda bir sonraki adim icin onkosul baglantisina gore 3xx/4xx seviyesinde ilgili dersleri planlayabiliriz. Istersen \"bu dersi nasil calismaliyim\" veya \"bu donem ne almaliyim\" diye devam edebilirsin.`;
@@ -335,6 +363,42 @@ export class RagService {
     if (completed.includes(code)) return true;
     const aliases = COURSE_ALIASES[code] ?? [];
     return aliases.some((a) => completed.includes(a));
+  }
+
+  private async buildInstructorDirectAnswer(question: string): Promise<string | null> {
+    if (!/(kim|hoca|prof|instructor)/i.test(question)) return null;
+    const match = this.findInstructorMatch(question);
+    if (!match) {
+      return 'Hangi hocayi sordugunu yazar misin? Ornek: "Onur Varol kim, hangi dersleri veriyor?"';
+    }
+    const undergradCourses = match.courses
+      .filter((code) => {
+        const n = Number((code.match(/\d{3,5}/) ?? ['0'])[0]);
+        return n > 0 && n < 500;
+      })
+      .sort((a, b) => a.localeCompare(b));
+    const courseLines = undergradCourses.length
+      ? undergradCourses.map((c) => `- ${c}`).join('\n')
+      : '- Lisans seviyesinde ders bulunamadi.';
+    const web = await this.fetchWebSnippet(`${match.name} Sabanci University research area`);
+    const area = web ? `\n\nArastirma odagi (web ozeti): ${web}` : '';
+    return `Ogretim uyesi: ${match.name}\nSabanci Universitesi son donem ders kayitlarina gore lisans dersleri:\n${courseLines}${area}`;
+  }
+
+  private findInstructorMatch(question: string): { name: string; courses: string[] } | null {
+    const lower = question.toLowerCase().replace(/\s+/g, ' ');
+    let best: { name: string; courses: string[]; hit: number } | null = null;
+    for (const [name, courses] of this.instructorCourses.entries()) {
+      const parts = name.split(/\s+/).filter((p) => p.length > 2);
+      if (parts.length === 0) continue;
+      const hitCount = parts.filter((p) => lower.includes(p)).length;
+      if (hitCount < 1) continue;
+      const arr = Array.from(courses).slice(0, 16);
+      if (!best || hitCount > best.hit || (hitCount === best.hit && arr.length > best.courses.length)) {
+        best = { name, courses: arr, hit: hitCount };
+      }
+    }
+    return best ? { name: best.name, courses: best.courses } : null;
   }
 
   private async ensureCourseContextLoaded() {
