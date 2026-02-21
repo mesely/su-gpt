@@ -175,6 +175,8 @@ services:
       EXAM_SERVICE_HOST: exam-svc
       EXAM_SERVICE_PORT: 50054
       NODE_ENV: ${NODE_ENV:-development}
+    volumes:
+      - gateway_data:/data
     depends_on:
       - course-svc
       - rag-svc
@@ -206,6 +208,7 @@ volumes:
   mongodb_data:
   chroma_data:
   minio_data:
+  gateway_data:
 
 # ─── Network ────────────────────────────────────────────────────────────────
 networks:

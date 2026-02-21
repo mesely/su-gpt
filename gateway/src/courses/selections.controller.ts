@@ -17,7 +17,7 @@ interface SelectionState {
 @Controller('api/v1/selections')
 @UseGuards(JwtAuthGuard)
 export class SelectionsController {
-  private readonly filePath = path.join(process.cwd(), '.gateway-selections.json');
+  private readonly filePath = path.join('/data', 'selections.json');
 
   @Get('me')
   getMine(@Req() req: { user: JwtPayload }) {
@@ -70,7 +70,7 @@ export class SelectionsController {
   }
 
   private writeDb(data: Record<string, SelectionState>) {
+    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     fs.writeFileSync(this.filePath, JSON.stringify(data), 'utf-8');
   }
 }
-
