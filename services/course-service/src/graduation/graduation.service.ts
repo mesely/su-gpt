@@ -127,15 +127,21 @@ export class GraduationService {
     }
 
     if (category === 'engineering') {
+      // Sum SU credits of courses that have engineering content (not the raw Engineering weight)
       return courses.reduce((sum, c) => {
         const cats = (c.categories as Record<string, number>) ?? {};
-        return sum + Number(cats.engineering ?? 0);
+        if (Number(cats.engineering ?? 0) <= 0) return sum;
+        const doc = c as Record<string, unknown>;
+        return sum + Number(doc.suCredit ?? doc.su_credit ?? 0);
       }, 0);
     }
     if (category === 'basicScience') {
+      // Sum SU credits of courses that have basic science content (not the raw Basic_Science weight)
       return courses.reduce((sum, c) => {
         const cats = (c.categories as Record<string, number>) ?? {};
-        return sum + Number(cats.basicScience ?? cats.basic_science ?? 0);
+        if (Number(cats.basicScience ?? cats.basic_science ?? 0) <= 0) return sum;
+        const doc = c as Record<string, unknown>;
+        return sum + Number(doc.suCredit ?? doc.su_credit ?? 0);
       }, 0);
     }
 

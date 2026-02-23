@@ -381,6 +381,138 @@ const SUPPORTER_COURSES: Record<Exclude<Difficulty, null>, string[]> = {
 
 const NOT_OFFERED_THIS_TERM = new Set(['CS419'])
 
+const COURSE_STUDY_GUIDES: Record<string, string> = {
+  'CS412': `## CS412 — Makine Öğrenmesi Çalışma Rehberi
+
+**Temel kaynaklar:**
+- Andrew Ng — Coursera ML Specialization (temel kavramlar için)
+- Andrej Karpathy — "Neural Networks: Zero to Hero" YouTube serisi (derin anlama)
+- CS231n Stanford ders notları (ek kaynak)
+
+**Çalışma stratejisi:**
+- Algoritmaları sıfırdan Python/numpy ile uygula: linear regression, logistic regression, k-means, SVM
+- matplotlib ile görselleştir — model kararlarını görmek sezgi kazandırır
+- **Kritik kavramlar:** overfitting/underfitting, bias-variance tradeoff, regularization (L1/L2), cross-validation, gradient descent
+- Her ödev için kodu çalıştırmadan önce math'i kağıda yaz — sınavda aynı adımlar istenir
+- Kaggle'da basit bir yarışma projesi başlat: bilgi pekişir, CV'ye katkı sağlar
+
+**Süre:** Haftalık ~10-12 saat (3h ders + 7-9h ödev/proje)`,
+  'CS415': `## CS415 — Derin Öğrenme Çalışma Rehberi
+
+**Temel kaynaklar:**
+- Andrej Karpathy — micrograd, makemore, nanoGPT repo'ları (sıfırdan uygulama)
+- Fast.ai Practical Deep Learning (top-down yaklaşım)
+- Deep Learning Book (Goodfellow) — Ch.6-9
+
+**Çalışma stratejisi:**
+- Backpropagation'ı kağıda türet, anlamadan geçme
+- PyTorch: tensor boyutlarını her adımda takip et, .shape kullan
+- CNN mimarilerini uygula: LeNet → AlexNet → ResNet sırası
+- **Kritik kavramlar:** batch norm, dropout, learning rate scheduling, weight initialization
+- GPU erişim: Colab veya Kaggle notebook (ücretsiz T4 GPU)
+
+**Süre:** Haftalık ~12-15 saat`,
+  'CS445': `## CS445 — Doğal Dil İşleme Çalışma Rehberi
+
+**Temel kaynaklar:**
+- Jurafsky & Martin "Speech and Language Processing" (PDF ücretsiz online)
+- CS224N Stanford ders videoları (YouTube)
+- Hugging Face Transformers dokümanları + tutorials
+
+**Çalışma stratejisi:**
+- Tokenization, stemming/lemmatization, TF-IDF'i sıfırdan uygula
+- Word2Vec/GloVe: neden işliyor, ne öğreniyor? Kağıda türet
+- Transformer architecture: attention mechanism'i adım adım kodla
+- Küçük proje: metin sınıflandırma veya NER (spaCy veya transformers kullan)
+- **Kritik kavramlar:** BERT pre-training/fine-tuning, sequence-to-sequence, beam search
+
+**Süre:** Haftalık ~10-12 saat`,
+  'CS301': `## CS301 — Algoritmalar Çalışma Rehberi
+
+**Temel kaynaklar:**
+- CLRS "Introduction to Algorithms" (standart başvuru kitabı)
+- MIT 6.006 ders videoları (YouTube — ücretsiz)
+- LeetCode (pratik problem çözme)
+
+**Çalışma stratejisi:**
+- Her algoritmanın worst/average/best-case karmaşıklığını anlayarak ezberle
+- Sorting: merge, quicksort, heapsort; Graph: BFS, DFS, Dijkstra, Bellman-Ford, Kruskal
+- Dynamic Programming: alt-problem yapısını tanı; memoization vs tabulation farkı
+- LeetCode'da haftalık 3-5 medium problem çöz
+- Sınavda pseudocode yazmak kritik — temiz notasyon alışkanlığı edin
+
+**Süre:** Haftalık ~10-12 saat`,
+  'CS300': `## CS300 — Veri Yapıları Çalışma Rehberi
+
+**Temel kaynaklar:**
+- Geeks for Geeks — her veri yapısı için görsel açıklamalar
+- Visualgo.net — animasyonlu görselleştirme (BST, sorting, graph)
+- Ders slaytları + önceki yıl sınavları
+
+**Çalışma stratejisi:**
+- Stack, Queue, Linked List, BST, Heap, Hash Table, Graph — hepsini kodla
+- BST: insert, delete, search, in-order/pre-order/post-order kafadan yazabilmeli
+- Big-O'yu sezgisel anla: neden O(log n) yerine O(n log n)?
+- LeetCode Easy/Medium tree ve array problemleri
+
+**Süre:** Haftalık ~8-10 saat`,
+  'CS306': `## CS306 — Veritabanı Sistemleri Çalışma Rehberi
+
+**Temel kaynaklar:**
+- Ders notları + Ramakrishnan & Gehrke textbook
+- SQLZoo ve LeetCode SQL problemleri
+
+**Çalışma stratejisi:**
+- ER diyagramı → ilişkisel şema dönüşümünü iyi anla
+- SQL: SELECT, JOIN (inner/outer/left/right), GROUP BY, HAVING, subquery — mantığını kavra
+- Normalizasyon: 1NF, 2NF, 3NF, BCNF — functional dependency analizi yap
+- Transaction ve ACID kavramlarını gerçek dünya örnekleriyle düşün
+- Proje: tasarım ve implementasyon birlikte değerlendiriliyor, erken başla
+
+**Süre:** Haftalık ~8-10 saat`,
+  'CS404': `## CS404 — Yapay Zeka Çalışma Rehberi
+
+**Temel kaynaklar:**
+- AIMA "Artificial Intelligence: A Modern Approach" (Russell & Norvig)
+- CS188 Berkeley ders notları (ücretsiz online)
+
+**Çalışma stratejisi:**
+- Search algorithms: BFS, DFS, A*, minimax, alpha-beta pruning — trace çizebilmeli
+- CSP: backtracking, arc consistency (AC-3)
+- Probabilistic models: Bayes Networks temel düzey
+- Sınav odaklı: her algoritmanın trace'ini kağıda çizebilmeli
+- **Kritik kavramlar:** heuristic admissibility, consistency, completeness
+
+**Süre:** Haftalık ~9-11 saat`,
+}
+
+const COURSE_DIFFICULTY_INFO: Record<string, { rating: number; label: string; note: string }> = {
+  'IF100':  { rating: 2, label: 'Kolay-Orta', note: 'Programlamaya giriş. Python ağırlıklı, mantıklı ilerlersin.' },
+  'CS201':  { rating: 2, label: 'Kolay-Orta', note: 'Temel programlama. Lab ödevlerine düzenli zaman ayır.' },
+  'CS204':  { rating: 3, label: 'Orta', note: 'OOP kavramları. İlk proje ödevleri zaman alıcı olabiliyor.' },
+  'CS210':  { rating: 2, label: 'Kolay-Orta', note: 'Veri bilimi giriş. Python ve pandas kullanımı ön planda.' },
+  'CS300':  { rating: 3, label: 'Orta', note: 'Uygulama ağırlıklı. Koda hâkimsen nispeten rahat geçer.' },
+  'CS301':  { rating: 4, label: 'Orta-Zor', note: 'Soyut düşünme ve proof gerektiriyor. Algoritma analizi biraz zaman alıyor.' },
+  'CS303':  { rating: 3, label: 'Orta', note: 'Dijital devre tasarımı. Lab saatleri yoğun.' },
+  'CS305':  { rating: 3, label: 'Orta', note: 'Programlama dili teorisi. Soyut kavramlar ama ilginç.' },
+  'CS306':  { rating: 3, label: 'Orta', note: 'SQL ve tasarım mantığı. Proje notu önemli.' },
+  'CS307':  { rating: 3, label: 'Orta-Zor', note: 'İşletim sistemleri detaylı; process, memory, file system.' },
+  'CS308':  { rating: 3, label: 'Orta', note: 'Yazılım mühendisliği. Takım projesi büyük pay tutuyor.' },
+  'CS400':  { rating: 4, label: 'Orta-Zor', note: 'Formal logic ve kanıtlama. Matematiksel düşünme gerekiyor.' },
+  'CS401':  { rating: 4, label: 'Orta-Zor', note: 'Bilgisayar mimarisi detaylı; Assembly, pipeline, cache.' },
+  'CS403':  { rating: 3, label: 'Orta', note: 'Dağıtık sistemler. Pratikte biraz belirsiz ama sınav net.' },
+  'CS404':  { rating: 3, label: 'Orta', note: 'Geniş kapsam ama sınav odaklı çalışmak işe yarıyor.' },
+  'CS411':  { rating: 4, label: 'Orta-Zor', note: 'Kriptografi matematiği yoğun; number theory gerekmekte.' },
+  'CS412':  { rating: 4, label: 'Zor', note: 'Yoğun matematik (lineer cebir, istatistik) + proje. Erken başla.' },
+  'CS415':  { rating: 4, label: 'Zor', note: 'Derin öğrenme teorisi + büyük kod ödevleri. GPU gerekiyor.' },
+  'CS445':  { rating: 3, label: 'Orta', note: 'NLP teorisi + transformer uygulamaları. Proje kritik.' },
+  'MATH101': { rating: 3, label: 'Orta', note: 'Sürekli pratik şart. Önceki haftaları kaçırma.' },
+  'MATH102': { rating: 3, label: 'Orta', note: 'Calculus II. Seri ve integral teknikleri zorlanılan konular.' },
+  'MATH203': { rating: 3, label: 'Orta', note: 'Olasılık. Sezgi geliştirmek zaman alıyor.' },
+  'MATH204': { rating: 3, label: 'Orta', note: 'Ayrık Matematik. Kombinatorik kısımlar tricky.' },
+  'MATH201': { rating: 3, label: 'Orta', note: 'Lineer Cebir. Soyut kavramlar ilk başta zor görünebilir.' },
+}
+
 function extractCourseCodeFromText(text: string): string | null {
   const m = text.toUpperCase().match(/\b([A-ZÇĞİÖŞÜ]{2,6}\s?\d{3,5}[A-Z]?)\b/)
   return m ? m[1].replace(/\s+/g, '') : null
@@ -754,6 +886,7 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
         plannedSet.add(code)
       }
     }
+    let displayMap = map
     if (finalList.length < Math.min(4, maxCourses)) {
       const pool = await getMajorCoursePool(major)
       const expanded = pool
@@ -763,17 +896,18 @@ ${missing.length ? missing.map((c) => shortCourse(c, map)).join('\n') : 'Belirgi
         .filter((c) => courseLevel(c) <= 4)
         .filter((c) => !NOT_OFFERED_THIS_TERM.has(c))
       const fullMap = await hydrateCourses(expanded.slice(0, 300))
+      displayMap = new Map(Array.from(map).concat(Array.from(fullMap)))
       for (const code of expanded) {
         if (finalList.length >= maxCourses) break
         if (finalList.includes(code)) continue
-        if (!prerequisiteSatisfied(code, fullMap, completedSet, plannedSet)) continue
+        if (!prerequisiteSatisfied(code, displayMap, completedSet, plannedSet)) continue
         finalList.push(code)
         plannedSet.add(code)
       }
     }
     const trackLabel = tracks.map((t) => t.label).join(' + ')
     const lines = finalList.map((code) => {
-      const c = map.get(code)
+      const c = displayMap.get(code)
       const diff = estimateCourseDifficulty(c)
       const prereq = c?.prerequisites?.length ? c.prerequisites.join(', ') : 'Yok'
       return `${shortCourse(code, map)} · Zorluk: **${diff}/10** · Onkosul: ${prereq}`
@@ -893,7 +1027,8 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
         })
       }
       if (isComplete && selectedCourses.length > 0) {
-        setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'difficulty-select' })
+        addMessage({ role: 'assistant', content: 'Hangi alana odaklanmak istedigini sec (max 2 alan). Serbest secmeli icin ECON, PSY, HUM vb. de ekleyebilirsin.', isWizard: true })
+        setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'track-select' })
       } else {
         addMessage({ role: 'assistant', content: 'Aldigin dersleri secmek istersen panelden sec. Secmek istemiyorsan "secmicem sen oner" yazabilirsin.', isWizard: true })
         setWizard({ ...INITIAL_WIZARD, type: 'plan', major, step: 'course-select' })
@@ -1095,10 +1230,30 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
       handleWizardSelect({ coursesDone: true })
       return
     }
-    if (wizard.type === 'plan' && wizard.step === null && (lowered === 'daha kolay' || lowered === 'daha zor' || lowered === 'daha dengeli')) {
+    // Handle text input during difficulty-select wizard step
+    if (wizard.type === 'plan' && wizard.step === 'difficulty-select') {
+      const diffMap: Record<string, Exclude<Difficulty, null>> = {
+        balanced: 'balanced', dengeli: 'balanced', 'daha dengeli': 'balanced',
+        easy: 'easy', kolay: 'easy', 'daha kolay': 'easy',
+        hard: 'hard', zor: 'hard', 'daha zor': 'hard',
+      }
+      const diff = diffMap[lowered.trim()]
+      if (diff) {
+        addMessage({ role: 'user', content: cleaned })
+        void handleWizardSelect({ difficulty: diff })
+        return
+      }
+    }
+
+    // Plan revision commands after plan was generated (when inProgressCourses exist)
+    if (inProgressCourses.length > 0 && (lowered === 'daha kolay' || lowered === 'daha zor' || lowered === 'daha dengeli')) {
+      addMessage({ role: 'user', content: cleaned })
       const difficulty: Exclude<Difficulty, null> =
         lowered === 'daha kolay' ? 'easy' : lowered === 'daha zor' ? 'hard' : 'balanced'
-      handleWizardSelect({ difficulty })
+      void formatPlanReply(lastPlanMajor || authMajor, difficulty).then((result) => {
+        setInProgressPlan(result.recommendedCodes, lastPlanMajor || authMajor, difficulty)
+        void streamWizardReply(result.text)
+      })
       return
     }
     if (wizard.type === 'plan' && wizard.step === null && /(daha cs odakli|cs odakli)/i.test(lowered)) {
@@ -1151,20 +1306,69 @@ Revize secenekleri: "daha kolay", "daha zor", "daha dengeli", "daha cs odakli", 
 
     const asksStudy = /(bu dersi nasil calismaliyim|nasil calismaliyim|how should i study)/i.test(lowered)
     const asksDifficulty = /(bu ders kolay mi zor mu|kolay mi zor mu|zor mu kolay mi)/i.test(lowered)
-    if ((asksStudy || asksDifficulty) && !extractCourseCodeFromText(cleaned)) {
+    const courseCodeInText = extractCourseCodeFromText(cleaned)
+
+    if (asksStudy) {
+      if (!courseCodeInText) {
+        addMessage({ role: 'user', content: cleaned })
+        addMessage({ role: 'assistant', content: 'Hangi ders icin calisma plani istiyorsun? Ornek: `CS412` veya `MATH203`.' })
+        return
+      }
       addMessage({ role: 'user', content: cleaned })
-      addMessage({
-        role: 'assistant',
-        content: asksStudy
-          ? 'Hangi ders icin calisma plani istiyorsun? Ornek: `CS419` veya `MATH203`.'
-          : 'Hangi dersin zorlugunu soruyorsun? Ornek: `CS300` veya `IF100`.',
-      })
+      const guide = COURSE_STUDY_GUIDES[courseCodeInText.toUpperCase()]
+      if (guide) {
+        void streamWizardReply(guide)
+      } else {
+        void sendRag(
+          `${courseCodeInText} dersi icin detayli calisma rehberi: hangi kaynaklar (kitap, video, online kurs), onemli kavramlar, pratik ipuclari, tipik zorluklar ve nasil hazirlanmali? Genel tavsiye degil, bu derse ozgu ver.`,
+          'course_qa',
+        )
+      }
+      return
+    }
+
+    if (asksDifficulty) {
+      if (!courseCodeInText) {
+        addMessage({ role: 'user', content: cleaned })
+        addMessage({ role: 'assistant', content: 'Hangi dersin zorlugunu soruyorsun? Ornek: `CS300` veya `IF100`.' })
+        return
+      }
+      addMessage({ role: 'user', content: cleaned })
+      const info = COURSE_DIFFICULTY_INFO[courseCodeInText.toUpperCase()]
+      if (info) {
+        const stars = '★'.repeat(info.rating) + '☆'.repeat(5 - info.rating)
+        void streamWizardReply(
+          `## ${courseCodeInText} — Zorluk Değerlendirmesi
+
+**Zorluk:** ${stars} ${info.label} (${info.rating}/5)
+
+**Not:** ${info.note}`
+        )
+      } else {
+        void sendRag(
+          `${courseCodeInText} dersi Sabanci Universitesi'nde zorluk seviyesi nasil? Hangi konular zorlaniliyor, ne kadar zaman ayrılmali, tipik not dagilimi nasildir? On kosullar veya almam gerekip gerekmedigini degil, sadece zorluk ve hazirlanma ipuclari ver.`,
+          'course_qa',
+        )
+      }
+      return
+    }
+
+    // Instructor query
+    const instructorQueryMatch = cleaned.match(/([A-ZÇĞİÖŞÜa-zçğışöşü]+ [A-ZÇĞİÖŞÜa-zçğışöşü]+)\s*(kim|kimdir|hakkinda|nasil)/i)
+    const asksInstructor = instructorQueryMatch || /(hoca hakkinda|kimdir|ogretim uyesi|prof\.)/i.test(lowered)
+    if (asksInstructor) {
+      addMessage({ role: 'user', content: cleaned })
+      const name = instructorQueryMatch?.[1] || cleaned
+      void sendRag(
+        `Sabanci Universitesi ${name} hakkinda bilgi ver: verdigi dersler, arastirma alanlari, hoca olarak ogrenci yorumlari ve genel profil.`,
+        'instructor_review',
+      )
       return
     }
 
     setWizard(INITIAL_WIZARD)
     sendRag(cleaned)
-  }, [addMessage, authMajor, handleWizardSelect, inProgressCourses, sendRag, startGraduationWizard, startPathWizard, startPlanWizard, wizard.step, wizard.type])
+  }, [addMessage, authMajor, formatPlanReply, handleWizardSelect, inProgressCourses, lastPlanMajor, sendRag, setInProgressPlan, startGraduationWizard, startPathWizard, startPlanWizard, streamWizardReply, wizard.step, wizard.type])
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

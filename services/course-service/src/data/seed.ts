@@ -106,7 +106,7 @@ function fromLegacyRow(row: RawCourse): CourseDoc | null {
     categories: {
       engineering,
       basicScience,
-      isCore: elType === 'faculty' && engineering >= 3,
+      isCore: elType === 'core' || elType === 'required',
       isArea: elType === 'area',
       isBasicScience: basicScience > 0,
     },
